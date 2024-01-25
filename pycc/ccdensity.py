@@ -62,6 +62,7 @@ class ccdensity(object):
         """
 
         time_init = time.time()
+
         self.ccwfn = ccwfn
         self.cclambda = cclambda
         self.contract = self.ccwfn.contract
@@ -69,73 +70,31 @@ class ccdensity(object):
         o = ccwfn.o
         v = ccwfn.v
         no = ccwfn.no
-        #comment it out 
-        self.no = ccwfn.no
         nv = ccwfn.nv
+        F = ccwfn.H.F
+        ERI = ccwfn.H.ERI
+        L = ccwfn.H.L
+        t1 = ccwfn.t1
+        t2 = ccwfn.t2
+        l1 = cclambda.l1
+        l2 = cclambda.l2
 
-        if ccwfn.local is not None and ccwfn.filter is not True:
-            self.lccwfn = ccwfn.lccwfn
-            self.local = ccwfn.local
-            self.model = ccwfn.model
-            self.Local = ccwfn.Local
-            self.cclambda = cclambda 
+        self.Dov = self.build_Dov(t1, t2, l1, l2)
+        self.Dvo = self.build_Dvo(l1)
+        self.Dvv = self.build_Dvv(t1, t2, l1, l2)
+        self.Doo = self.build_Doo(t1, t2, l1, l2)
 
-            t1 = self.lccwfn.t1
-            l1 = self.cclambda.l1
-            t2 = self.lccwfn.t2 
-            l2 = self.cclambda.l2
+        self.onlyone = onlyone
 
-            self.Doo = self.build_lDoo(t1, t2, l1, l2)
-            self.Dvv, self.vv_energy = self.build_lDvv(t1, t2, l1, l2)
-            self.Dov = self.build_lDov(t1, t2, l1, l2)
-            #print("=== lDoo ===\n", self.Doo)
-            #print("=== lDvv ===\n",self.Dvv)
-            #print("=== lDov ===\n", self.Dov)
-            #print("Local energy:\n", self.compute_local_energy(lDvv, t1, t2, l1, l2))
+        if onlyone is False:
+            self.Doooo = self.build_Doooo(t1, t2, l2)
+            self.Dvvvv = self.build_Dvvvv(t1, t2, l2)
+            self.Dooov = self.build_Dooov(t1, t2, l1, l2)
+            self.Dvvvo = self.build_Dvvvo(t1, t2, l1, l2)
+            self.Dovov = self.build_Dovov(t1, t2, l1, l2)
+            self.Doovv = self.build_Doovv(t1, t2, l1, l2)
 
-            self.Doo, oo_energy = self.build_lDoo(t1, t2, l1, l2)
-            self.Dvv, vv_energy = self.build_lDvv(t1, t2, l1, l2)
-            self.Dov, ov_energy = self.build_lDov(t1, t2, l1, l2)
-            print("=== lDoo ===\n", self.Doo)
-            print("=== lDvv ===\n",self.Dvv)
-            print("=== lDov ===\n", self.Dov)
-            print("Local energy:\n", self.compute_local_energy(t1, t2, l1, l2))
-
-        else: 
-            F = ccwfn.H.F
-            ERI = ccwfn.H.ERI
-            L = ccwfn.H.L
-            t1 = ccwfn.t1
-            t2 = ccwfn.t2
-            l1 = cclambda.l1
-            l2 = cclambda.l2
-
-            self.Dov = self.build_Dov(t1, t2, l1, l2)
-            self.Dvo = self.build_Dvo(l1)
-            self.Dvv = self.build_Dvv(t1, t2, l1, l2)
-            self.Doo = self.build_Doo(t1, t2, l1, l2)
-            reg_energy = self.vv_energy + self.oo_energy #+ self.ov_energy
-            print("===========Regular Energy=========\n", reg_energy)
-            print("===========vv Energy=========\n", self.vv_energy)
-
-          #  print(self.Doo)
-            if self.ccwfn.filter is True:
-                Q = self.ccwfn.Local.Q
-                L = self.ccwfn.Local.L
-                for ij in range(self.no**2):
-                    print("Dvv_ij", ij, (Q[ij] @ L[ij]).T @ self.Dvv @ (Q[ij] @ L[ij]))
-            #print(self.Dvv)
-            self.onlyone = onlyone
-
-            if onlyone is False:
-                self.Doooo = self.build_Doooo(t1, t2, l2)
-                self.Dvvvv = self.build_Dvvvv(t1, t2, l2)
-                self.Dooov = self.build_Dooov(t1, t2, l1, l2)
-                self.Dvvvo = self.build_Dvvvo(t1, t2, l1, l2)
-                self.Dovov = self.build_Dovov(t1, t2, l1, l2)
-                self.Doovv = self.build_Doovv(t1, t2, l1, l2)
-
-            print("\nCCDENSITY constructed in %.3f seconds.\n" % (time.time() - time_init))
+        print("\nCCDENSITY constructed in %.3f seconds.\n" % (time.time() - time_init))
 
     def compute_energy(self):
         """
@@ -156,12 +115,12 @@ class ccdensity(object):
         F = self.ccwfn.H.F
         ERI = self.ccwfn.H.ERI
 
-        contract = self.contract
+        contract = self.contract 
 
         # We assume here that the Brillouin condition holds
         oo_energy = contract('ij,ij->', F[o,o], self.Doo)
         vv_energy = contract('ab,ab->', F[v,v], self.Dvv)
-        eone = vv_energy #+ vv_energy
+        eone = oo_energy + vv_energy
         print("One-electron CC energy = %20.15f" % eone)
 
         if self.onlyone is True:
@@ -187,25 +146,23 @@ class ccdensity(object):
 
         print("CC Correlation Energy  = %20.15f" % ecc)
 
-        # self.ecc = ecc
-        # self.eone = eone
-        # self.etwo = etwo
+        self.ecc = ecc
+        self.eone = eone
+        self.etwo = etwo
 
         return ecc
 
-    def compute_onepdm(self, t1, t2, l1, l2, withref=False):
+    def compute_onepdm(self, t1, t2, l1, l2):
         """
         Parameters
         ----------
         t1, t2, l1, l2 : NumPy arrays
             current cluster amplitudes
-        withref : Boolean (default: False)
-            include the reference contribution if True
 
         Returns
         -------
         onepdm : NumPy array
-            the CC one-electron density as a single, full matrix
+            the CC one-electron density as a single, full matrix (only the correlated contribution)
         """
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -227,18 +184,6 @@ class ccdensity(object):
             elif self.ccwfn.precision == 'SP':
                 opdm = np.zeros((nt, nt), dtype='complex64')
         opdm[o,o] = self.build_Doo(t1, t2, l1, l2)
-        if withref is True:
-            if isinstance(t1, torch.Tensor):
-                if self.ccwfn.precision == 'DP':
-                    opdm[o,o] += 2.0 * torch.eye(no, dtype=torch.complex128, device=self.ccwfn.device1)  # Reference contribution
-                elif self.ccwfn.precision == 'SP':
-                    opdm[o,o] += 2.0 * torch.eye(no, dtype=torch.complex64, device=self.ccwfn.device1)
-            else:
-                if self.ccwfn.precision == 'DP':
-                    opdm[o,o] += 2.0 * np.eye(no)  # Reference contribution
-                elif self.ccwfn.precision == 'SP':
-                    opdm[o,o] += 2.0 * np.eye(no, dtype=np.complex64)
-
         opdm[v,v] = self.build_Dvv(t1, t2, l1, l2)
         opdm[o,v] = self.build_Dov(t1, t2, l1, l2)
         opdm[v,o] = self.build_Dvo(l1)
@@ -268,153 +213,40 @@ class ccdensity(object):
 
     def build_Doo(self, t1, t2, l1, l2):  # complete
         contract = self.contract
-        o = self.ccwfn.o 
         if self.ccwfn.model == 'CCD':
             Doo = -contract('imef,jmef->ij', t2, l2)
-            self.oo_energy = contract('ij,ij->', self.ccwfn.H.F[o,o], Doo)
-            print("sim oo energy", self.oo_energy)
         else:
             Doo = -1.0 * contract('ie,je->ij', t1, l1)
             Doo -= contract('imef,jmef->ij', t2, l2)
-            self.oo_energy = contract('ij, ij -> ', self.ccwfn.H.F[o,o], Doo)
             # (T) contributions computed in ccwfn.t3_density()
             if self.ccwfn.model == 'CCSD(T)':
                 Doo += self.ccwfn.Doo
 
         return Doo
 
-    def build_lDoo(self, t1, t2, l1, l2):  # beginning - implementing the ccd-density
-        if self.ccwfn.model == 'CCD': 
-            lDoo = np.zeros((self.ccwfn.no, self.ccwfn.no))
-            contract = self.contract
-            oo_energy = 0
-            for ij in range (self.ccwfn.no * self.ccwfn.no):
-                i = ij // self.ccwfn.no 
-                j = ij % self.ccwfn.no
-                for m in range(self.ccwfn.no):
-                    im = i * self.ccwfn.no + m
-                    jm = j * self.ccwfn.no + m
-                    Q = self.ccwfn.Local.Q
-                    L = self.ccwfn.Local.L
-                    Q_im = Q[im] @ L[im]
-                    Q_jm = Q[jm] @ L[jm]
-                    S_jmim = (Q_jm).T @ (Q_im)
-                    temp = S_jmim @ t2[im] @ S_jmim.T  
-                    lDoo[i,j] -= contract('ef, ef-> ', temp, l2[jm])
-                oo_energy += self.ccwfn.H.F[i,j] * lDoo[i,j] #contract(',ij->', self.ccwfn.H.F[i,j], lDoo)
-        else:
-            contract = self.contract
-            lDoo_1 = np.zeros((self.ccwfn.no, self.ccwfn.no))
-            lDoo_2 = np.zeros((self.ccwfn.no, self.ccwfn.no))
-            oo_energy = 0
-            for ij in range (self.ccwfn.no * self.ccwfn.no):
-                i = ij // self.ccwfn.no
-                j = ij % self.ccwfn.no
-                ii = i * self.no + i
-                jj = j * self.no + j
-                Q = self.ccwfn.Local.Q
-                L = self.ccwfn.Local.L
-                Q_i = Q[ii] @ L[ii]
-                Q_j = Q[jj] @ L[jj]
-                S_jjii = (Q_j).T @ (Q_i)
-                temp = S_jjii @ t1[i]
-                lDoo_1[i,j] -= contract('e,e->', temp, l1[j])
-                # oo_energy += self.ccwfn.H.F[i, j] * lDoo_1[i, j]
-                for m in range(self.ccwfn.no):
-                    im = i * self.ccwfn.no + m
-                    jm = j * self.ccwfn.no + m
-                    Q = self.ccwfn.Local.Q
-                    L = self.ccwfn.Local.L
-                    Q_im = Q[im] @ L[im]
-                    Q_jm = Q[jm] @ L[jm]
-                    S_jmim = (Q_jm).T @ (Q_im)
-                    temp = S_jmim @ t2[im] @ S_jmim.T
-                    lDoo_2[i,j] -= contract('ef,ef->', temp, l2[jm])
-            lDoo = lDoo_1 + lDoo_2
-            o = self.ccwfn.o
-            oo_energy = contract('ij, ij -> ', self.ccwfn.H.F[o, o], lDoo)
-            #(T) contributions computed in ccwfn.t3_density()
-            #if self.ccwfn.model == 'CCSD(T)':
-                #Doo += self.ccwfn.Doo
-
-        return lDoo, oo_energy
-
-
 
     def build_Dvv(self, t1, t2, l1, l2):  # complete
         contract = self.contract
-        v = self.ccwfn.v
         if self.ccwfn.model == 'CCD':
             Dvv = contract('mnbe,mnae->ab', t2, l2)
-            self.vv_energy = contract('ab,ab->', self.ccwfn.H.F[v, v], Dvv)
-            print("sim vv energy", self.vv_energy)
-            # collect variables needed to transform Dvv to Dvv^ij
         else:
             Dvv = contract('mb,ma->ab', t1, l1)
             Dvv += contract('mnbe,mnae->ab', t2, l2)
-            self.vv_energy = contract('ab,ab->', self.ccwfn.H.F[v, v], Dvv)
             # (T) contributions computed in ccwfn.t3_density()
             if self.ccwfn.model == 'CCSD(T)':
                 Dvv += self.ccwfn.Dvv
 
         return Dvv
-    
-    def build_lDvv(self, t1, t2, l1, l2):  # begining - implementing the ccsd & ccd-density
-        lDvv = []
-        if self.ccwfn.model == 'CCD':
-            contract = self.contract
-            vv_energy = 0
-            for ij in range(self.ccwfn.no * self.ccwfn.no):
-                Dvv = np.zeros((self.Local.dim[ij], self.Local.dim[ij]))
-                #for mn in range(self.ccwfn.no * self.ccwfn.no):
-                    #S_ijmn = self.Local.QL[ij].T @ self.Local.QL[mn]
-                    #emp_t2 = S_ijmn @ t2[mn]
-                    #temp_l2 = S_ijmn @ l2[mn]
-                Dvv = contract('be,ae->ab', t2[ij], l2[ij])
-                #print("Dvv_ij", Dvv)
-                lDvv.append(Dvv)
-                vv_energy += contract('ab, ab -> ', self.Local.Fvv[ij], Dvv)
-        else:
-            contract = self.contract
-            vv_energy = 0
-            for i in range(self.ccwfn.no):
-                ii = i*self.ccwfn.no + i
-                lDvv_1 = np.zeros((self.Local.dim[ii], self.Local.dim[ii]))
-                lDvv_1 = contract('b,a->ab', t1[i], l1[i])
-                vv_energy += contract('ab, ab -> ', self.Local.Fvv[ii], lDvv_1)
-                for j in range(self.ccwfn.no):
-                    ij = i*self.ccwfn.no + j 
-                    lDvv_2 = np.zeros((self.Local.dim[ij], self.Local.dim[ij]))
-                    lDvv_2 = contract('be,ae->ab', t2[ij], l2[ij] )
-                    vv_energy += contract('ab, ab -> ', self.Local.Fvv[ij], lDvv_2)
-                    ij = i * self.ccwfn.no + j
-                    lDvv_2 = np.zeros((self.Local.dim[ij], self.Local.dim[ij]))
-                    lDvv_2 = contract('be, ae ->ab', t2[ij], l2[ij])
-                    vv_energy += contract('ab, ab -> ', self.Local.Fvv[ij], lDvv_2)
-                    if (ii == ij):
-                        tDvv = lDvv_1 + lDvv_2
-                    else:
-                        tDvv = lDvv_2
-                    lDvv.append(tDvv)
 
-            print("Dvv energy", vv_energy)  
-        return lDvv, vv_energy
-                 
 
     def build_Dvo(self, l1):  # complete
         if isinstance(l1, torch.Tensor):
             return l1.T.clone()
-
         else:
             return l1.T.copy()
 
-    def build_lDvo(self, t2, l2):  # begining - implementing the ccd-density
-        pass 
-
     def build_Dov(self, t1, t2, l1, l2):  # complete
         contract = self.contract
-        o = self.ccwfn.o
-        v = self.ccwfn.v
         if self.ccwfn.model == 'CCD':
             if isinstance(t1, torch.Tensor):
                 Dov = torch.zeros_like(t1)
@@ -432,7 +264,7 @@ class ccdensity(object):
             Dov -= contract('mi,ma->ia', tmp, t1)
             tmp = contract('mnef,mnaf->ea', l2, t2)
             Dov -= contract('ea,ie->ia', tmp, t1)
-            self.ov_energy = contract('ia, ia -> ', self.ccwfn.H.F[o,v], Dov)
+
             if self.ccwfn.model == 'CCSD(T)':
                 Dov += self.ccwfn.Dov
 
@@ -440,76 +272,6 @@ class ccdensity(object):
                 del tmp
 
         return Dov
-
-    def build_lDov(self,  t1, t2, l1, l2):  # beginning - implementing the ccd-density
-        lDov = []
-        if self.ccwfn.model == 'CCD':
-            pass
-        else:
-            ov_energy = 0.0
-            contract = self.contract
-            QL = self.ccwfn.Local.QL
-            for i in range(self.ccwfn.no):
-                ii = i * self.ccwfn.no + i
-
-                lDov_1 = 2 * t1[i].copy()
-
-                for m in range(self.ccwfn.no):
-                    im = i * self.ccwfn.no + m
-                    mi = m * self.ccwfn.no + i
-                    mm = m * self.ccwfn.no + m
-                    S_iiim = QL[ii].T @ QL[im]
-                    S_immm = QL[im].T @ QL[mm]
-                    S_mimm = QL[mi].T @ QL[mm]
-                    S_iimi = QL[ii].T @ QL[mi]
-                    S_iimm = QL[ii].T @ QL[mm]
-
-                    tmp = S_iiim @ t2[im] @ S_immm
-                    lDov_1 += 2 * contract('e,ae->a', l1[m], tmp)
-
-                    tmp = S_iimi @ t2[mi] @ S_mimm
-                    lDov_1 -= contract('e, ae-> a', l1[m], tmp)
-
-                    lDov_1 -= contract('e,a,e->a', l1[m] @ S_iimm.T, t1[m] @ S_iimm.T, t1[i])
-
-                    Xmi = np.zeros((self.ccwfn.no, self.ccwfn.no))
-                    Xea = np.zeros((self.Local.dim[ii], self.Local.dim[ii]))
-                    for n in range(self.ccwfn.no):
-                        _in = i * self.ccwfn.no + n
-                        mn = m * self.ccwfn.no + n
-
-                        S_mnin = QL[mn].T @ QL[_in]
-                        S_iimn = QL[ii].T @ QL[mn]
-                        tmp = S_mnin @ t2[_in] @ S_mnin.T
-                        Xmi[m, i] += contract('ef,ef->', l2[mn], tmp)
-
-                        tmp = S_iimn @ l2[mn]
-                        tmp1 = S_iimn @ t2[mn]
-                        Xea += contract('ef,af->ea', tmp, tmp1)
-
-                    tmp = S_iimm @ t1[m]
-                    lDov_1 -= Xmi[m, i] * tmp
-
-                    lDov_1 -= contract('ea,e->a', Xea, t1[i])
-                lDov.append(lDov_1)
-        ov_energy += contract('a, a -> ', self.Local.Fov[ii][i], lDov[i])
-        return lDov, ov_energy
-
-
-    def compute_local_energy(self, t1, t2, l1, l2):
-        if self.ccwfn.model == 'CCD':
-            lDoo, oo_energy = self.build_lDoo(t1, t2, l1, l2)
-            lDvv, vv_energy = self.build_lDvv( t1, t2, l1, l2)
-            total_energy = oo_energy + vv_energy
-        else:
-            lDoo, oo_energy = self.build_lDoo(t1, t2, l1, l2)
-            lDvv, vv_energy = self.build_lDvv(t1, t2, l1, l2)
-            lDov, ov_energy = self.build_lDov(t1, t2, l1, l2)
-            total_energy = vv_energy + oo_energy + ov_energy
-
-        return total_energy
-
-
 
     # CC3 contributions to the one electron densities
     def build_cc3_Dov(self, o, v, no, nv, F, L, t1, t2, l1, l2, Wvvvo, Wovoo, Fov, Wvovv, Wooov):
@@ -823,3 +585,5 @@ class ccdensity(object):
         Mvv = Mvv - contract('ie,ia->ae', ints[:no,-nv:], t1)
 
         return Mvv
+
+   

@@ -51,6 +51,7 @@ class ccresponse(object):
         self.no = self.ccwfn.no
         self.Local = self.ccwfn.Local
 
+        if 
 
         # Cartesian indices
         self.cart = ["X", "Y", "Z"]
@@ -1985,6 +1986,7 @@ class ccresponse(object):
             diis.add_error_vector(self.Y1, self.Y2)
             if niter >= start_diis:
                 self.Y1, self.Y2 = diis.extrapolate(self.Y1, self.Y2)
+    def solve_lleft(self, pertbar, omega, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1):
 
     def r_X1(self, pertbar, omega):
         contract = self.contract
@@ -2169,6 +2171,12 @@ class ccresponse(object):
 
         return r_Y1
  
+    def r_lY1(self, pertbar, X1, X2):
+        contract = self.contract 
+        o = self.ccwfn.o
+        v = self.ccwfn.v
+
+
     def r_Y1(self, pertbar, omega):
         contract = self.contract
         o = self.ccwfn.o
@@ -2370,6 +2378,62 @@ class pertbar(object):
         self.Avv -= contract('ma,me->ae', t1, pert[o,v])
 
         self.Avo = pert[v,o].copy()
+        self.Avo += contract('ie,ae->ai', t1, pert[v,v])
+        self.Avo -= contract('ma,mi->ai', t1, pert[o,o])
+        self.Avo += contract('miea,me->ai', (2.0*t2 - t2.swapaxes(2,3)), pert[o,v])
+        self.Avo -= contract('ie,ma,me->ai', t1, t1, pert[o,v])
+
+        self.Aovoo = contract('ijeb,me->mbij', t2, pert[o,v])
+
+        self.Avvvo = -1.0*contract('miab,me->abei', t2, pert[o,v])
+
+        # Note that Avvoo is permutationally symmetric, unlike the implementation in ugacc
+        self.Avvoo = contract('ijeb,ae->ijab', t2, self.Avv)
+        self.Avvoo -= contract('mjab,mi->ijab', t2, self.Aoo)
+        self.Avvoo = 0.5*(self.Avvoo + self.Avvoo.swapaxes(0,1).swapaxes(2,3))
+
+class lpertbar(object):
+    def __init__(self, pert, ccwfn):
+        o = ccwfn.o
+        v = ccwfn.v
+        no = self.no
+        t1 = lccwfn.t1
+        t2 = lccwfn.t2
+        contract = ccwfn.contract
+        QL = self.Local.QL 
+        self.Aov = []
+        self.Avv = []
+        self.Avo = []
+        self.Aovoo = []
+        self.Avvoo = []
+        self.Avvvo = []
+
+        self.Aoo = pert[o,o].copy()
+        self.Aoo += contract('ie,me->mi', t1, pert[o,v])
+
+        norm = 0
+        for ij in range(no*no):
+            i = ij // no
+
+            self.Aov.append(pert[o,v].copy() @ QL[ij])
+
+            tmp = QL[ij].T @ pert[v,v].copy() @ QL[ij]
+
+            for m in range(no):
+                mm = m*no + m
+                tmp1 += contract('a,e->ae', t1[m], pert[m,v].copy() @ QL[mm])
+            Sijmm = self.Local.Sijmm  
+            tmp += Sijmm @ tmp1 @ Sijmm.T 
+            norm += np.linalg.norm(tmp) 
+            self.Avv.append(tmp)
+           
+            tmp = QL[ij].T @ pert[v,i].copy()
+            tmp += t1[i] @ (QL[ij].T @ pert[v,v].copy() @ QL[ii]).T 
+
+            for m in range(no): 
+                tmp2 -= t1[m] * pert[m,i].copy() 
+            tmp += Sijmm @ tmp2  
+            
         self.Avo += contract('ie,ae->ai', t1, pert[v,v])
         self.Avo -= contract('ma,mi->ai', t1, pert[o,o])
         self.Avo += contract('miea,me->ai', (2.0*t2 - t2.swapaxes(2,3)), pert[o,v])

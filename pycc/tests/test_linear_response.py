@@ -44,7 +44,7 @@ rhf_e, rhf_wfn = psi4.energy('SCF', return_wfn=True)
 e_conv = 1e-12
 r_conv = 1e-12
 
-cc = pycc.ccwfn(rhf_wfn)
+cc = pycc.ccwfn(rhf_wfn, local = 'PNO', local_cutoff = 0, filter = True)
 ecc = cc.solve_cc(e_conv, r_conv)
 hbar = pycc.cchbar(cc)
 cclambda = pycc.cclambda(cc, hbar)
@@ -137,13 +137,15 @@ polar_AB_aveg = np.zeros((3,3))
 #     return -1.0 * (polar1 + polar2)
 
 
-for a in range(0, 3):
+for a in range(0, 1):
     string_a = "MU_" + resp.cart[a]
     for b in range(0, 3):
         string_b = "MU_" + resp.cart[b]
         Y1_B, Y2_B, _ = Y_2[string_b]
         X1_B, X2_B, _ = X_2[string_b]
         polar_AB_pos[a,b] = resp.linresp_asym(string_a, string_b, X1_B, X2_B, Y1_B, Y2_B) #, X1_B, X2_B, Y1_B, Y2_B)     #, X_1[string_a], X_1[string_b], Y_1[string_a], Y_1[string_b])
+        # if a==0 and b==0:
+        resp.local_linresp(string_a, X1_B)
         # # Grabbing X and Y for perturbation A, where -omega1 is neagtive
         # X1_A = X_1[string_a][0]
         # X2_A = X_1[string_b][1]
@@ -160,6 +162,7 @@ for a in range(0, 3):
         #
         # pertbar_A = self.perbar[string_a]
         # pertbar_B = self.pertbar[string_b]
+
 print(polar_AB_pos[0,0])
 print(polar_AB_pos[1,1])
 print(polar_AB_pos[2,2])

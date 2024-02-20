@@ -108,12 +108,12 @@ class ccdensity(object):
             print("===========Regular Energy=========\n", reg_energy)
             print("===========vv Energy=========\n", self.vv_energy)
 
-            print(self.Doo)
-            if self.ccwfn.filter is True:
-                Q = self.ccwfn.Local.Q
-                L = self.ccwfn.Local.L
-                for ij in range(self.no**2):
-                    print("Dvv_ij", ij, (Q[ij] @ L[ij]).T @ self.Dvv @ (Q[ij] @ L[ij]))
+            #print(self.Doo)
+            #if self.ccwfn.filter is True:
+            #    Q = self.ccwfn.Local.Q
+            #    L = self.ccwfn.Local.L
+                #for ij in range(self.no**2):
+                #    print("Dvv_ij", ij, (Q[ij] @ L[ij]).T @ self.Dvv @ (Q[ij] @ L[ij]))
             #print(self.Dvv)
             self.onlyone = onlyone
 
@@ -334,7 +334,7 @@ class ccdensity(object):
         if self.ccwfn.model == 'CCD':
             Dvv = contract('mnbe,mnae->ab', t2, l2)
             self.vv_energy = contract('ab,ab->', self.ccwfn.H.F[v, v], Dvv)
-            print("sim vv energy", self.vv_energy)
+            #print("sim vv energy", self.vv_energy)
             # collect variables needed to transform Dvv to Dvv^ij
         else:
             Dvv = contract('mb,ma->ab', t1, l1)

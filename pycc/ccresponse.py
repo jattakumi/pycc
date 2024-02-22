@@ -51,55 +51,74 @@ class ccresponse(object):
         self.no = self.ccwfn.no
         self.Local = self.ccwfn.Local
 
-        if 
+        if self.ccwfn.local is not None and self.ccwfn.filter is not True: 
+            self.lccwfn = ccdensity.lccwfn
+            self.cclambda = ccdensity.cclambda
+            self.H = self.ccwfn.H
+            self.cchbar = self.cclambda.hbar
+            self.contract = self.ccwfn.contract
+            self.no = self.ccwfn.no
+            self.Local = self.ccwfn.Local       
 
-        # Cartesian indices
-        self.cart = ["X", "Y", "Z"]
+            # Cartesian indices
+            self.cart = ["X", "Y", "Z"]
 
-        # Build dictionary of similarity-transformed property integrals
-        self.pertbar = {}
+            # Build dictionary of similarity-transformed property integrals
+            self.lpertbar = {}
 
-        # Electric-dipole operator (length)
-        for axis in range(3):
-            key = "MU_" + self.cart[axis]
-            self.pertbar[key] = pertbar(self.H.mu[axis], self.ccwfn)
+            # Electric-dipole operator (length)
+            for axis in range(3):
+                key = "MU_" + self.cart[axis]
+                self.lpertbar[key] = lpertbar(self.H.mu[axis], self.ccwfn, self.lccwfn)
 
-        # Magnetic-dipole operator
-        for axis in range(3):
-            key = "M_" + self.cart[axis]
-            self.pertbar[key] = pertbar(self.H.m[axis], self.ccwfn)
-
-        # Complex-conjugate of magnetic-dipole operator
-        for axis in range(3):
-            key = "M*_" + self.cart[axis]
-            self.pertbar[key] = pertbar(np.conj(self.H.m[axis]), self.ccwfn)
-
-        # Electric-dipole operator (velocity)
-        for axis in range(3):
-            key = "P_" + self.cart[axis]
-            self.pertbar[key] = pertbar(self.H.p[axis], self.ccwfn)
-
-        # Complex-conjugate of electric-dipole operator (velocity)
-        for axis in range(3):
-            key = "P*_" + self.cart[axis]
-            self.pertbar[key] = pertbar(np.conj(self.H.p[axis]), self.ccwfn)
-
-        # Traceless quadrupole
-        ij = 0
-        for axis1 in range(3):
-            for axis2 in range(axis1,3):
-                key = "Q_" + self.cart[axis1] + self.cart[axis2]
-                self.pertbar[key] = pertbar(self.H.Q[ij], self.ccwfn)
-                if (axis1 != axis2):
-                    key2 = "Q_" + self.cart[axis2] + self.cart[axis1]
-                    self.pertbar[key2] = self.pertbar[key]
-                ij += 1
-
-        # HBAR-based denominators
-        eps_occ = np.diag(self.hbar.Hoo)
-        eps_vir = np.diag(self.hbar.Hvv)
-        self.Dia = eps_occ.reshape(-1,1) - eps_vir
-        self.Dijab = eps_occ.reshape(-1,1,1,1) + eps_occ.reshape(-1,1,1) - eps_vir.reshape(-1,1) - eps_vir
+        else: 
+            # Cartesian indices
+            self.cart = ["X", "Y", "Z"]
+    
+            # Build dictionary of similarity-transformed property integrals
+            self.pertbar = {}
+    
+            # Electric-dipole operator (length)
+            for axis in range(3):
+                key = "MU_" + self.cart[axis]
+                self.pertbar[key] = pertbar(self.H.mu[axis], self.ccwfn)
+    
+            # # Magnetic-dipole operator
+            # for axis in range(3):
+            #     key = "M_" + self.cart[axis]
+            #     self.pertbar[key] = pertbar(self.H.m[axis], self.ccwfn)
+    
+            # # Complex-conjugate of magnetic-dipole operator
+            # for axis in range(3):
+            #     key = "M*_" + self.cart[axis]
+            #     self.pertbar[key] = pertbar(np.conj(self.H.m[axis]), self.ccwfn)
+    
+            # # Electric-dipole operator (velocity)
+            # for axis in range(3):
+            #     key = "P_" + self.cart[axis]
+            #     self.pertbar[key] = pertbar(self.H.p[axis], self.ccwfn)
+    
+            # # Complex-conjugate of electric-dipole operator (velocity)
+            # for axis in range(3):
+            #     key = "P*_" + self.cart[axis]
+            #     self.pertbar[key] = pertbar(np.conj(self.H.p[axis]), self.ccwfn)
+    
+            # # Traceless quadrupole
+            # ij = 0
+            # for axis1 in range(3):
+            #     for axis2 in range(axis1,3):
+            #         key = "Q_" + self.cart[axis1] + self.cart[axis2]
+            #         self.pertbar[key] = pertbar(self.H.Q[ij], self.ccwfn)
+            #         if (axis1 != axis2):
+            #             key2 = "Q_" + self.cart[axis2] + self.cart[axis1]
+            #             self.pertbar[key2] = self.pertbar[key]
+            #         ij += 1
+    
+            # HBAR-based denominators
+            eps_occ = np.diag(self.hbar.Hoo)
+            eps_vir = np.diag(self.hbar.Hvv)
+            self.Dia = eps_occ.reshape(-1,1) - eps_vir
+            self.Dijab = eps_occ.reshape(-1,1,1,1) + eps_occ.reshape(-1,1,1) - eps_vir.reshape(-1,1) - eps_vir
 
     def pertcheck(self, omega, e_conv=1e-13, r_conv=1e-13, maxiter=200, max_diis=8, start_diis=1):
         """
@@ -1986,7 +2005,7 @@ class ccresponse(object):
             diis.add_error_vector(self.Y1, self.Y2)
             if niter >= start_diis:
                 self.Y1, self.Y2 = diis.extrapolate(self.Y1, self.Y2)
-    def solve_lleft(self, pertbar, omega, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1):
+#    def solve_lleft(self, pertbar, omega, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1):
 
     def r_X1(self, pertbar, omega):
         contract = self.contract
@@ -2370,7 +2389,6 @@ class pertbar(object):
         contract = ccwfn.contract
 
         self.Aov = pert[o,v].copy()
-
         self.Aoo = pert[o,o].copy()
         self.Aoo += contract('ie,me->mi', t1, pert[o,v])
 
@@ -2392,58 +2410,107 @@ class pertbar(object):
         self.Avvoo -= contract('mjab,mi->ijab', t2, self.Aoo)
         self.Avvoo = 0.5*(self.Avvoo + self.Avvoo.swapaxes(0,1).swapaxes(2,3))
 
+        #norm = 0 
+        #for ij in range(ccwfn.no*ccwfn.no):
+        #    i = ij // ccwfn.no
+        #    j = ij % ccwfn.no
+        #    ji = j*ccwfn.no + i 
+        #    tmp = contract('ab, aA, bB-> AB', self.Avvoo[i,j,:,:], (ccwfn.Local.Q[ij] @ ccwfn.Local.L[ij]), (ccwfn.Local.Q[ij] @ ccwfn.Local.L[ij]))
+        #    #tmp1 =  contract('ab, aA, bB-> AB', self.Avvoo[j,i,:,:], (ccwfn.Local.Q[ji] @ ccwfn.Local.L[ji]), (ccwfn.Local.Q[ji] @ ccwfn.Local.L[ji]))  
+        #    norm += np.linalg.norm(tmp) #  + tmp1))
+        #print("norm of Avvoo", norm)
+
 class lpertbar(object):
-    def __init__(self, pert, ccwfn):
+    def __init__(self, pert, ccwfn, lccwfn):
         o = ccwfn.o
         v = ccwfn.v
-        no = self.no
+        no = ccwfn.no
         t1 = lccwfn.t1
         t2 = lccwfn.t2
         contract = ccwfn.contract
-        QL = self.Local.QL 
+        QL = ccwfn.Local.QL 
         self.Aov = []
         self.Avv = []
         self.Avo = []
         self.Aovoo = []
+        lAvvoo = []
         self.Avvoo = []
         self.Avvvo = []
 
         self.Aoo = pert[o,o].copy()
-        self.Aoo += contract('ie,me->mi', t1, pert[o,v])
+        for i in range(no):
+            ii = i*no + i
+            for m in range(no):
+                self.Aoo[m,i] += contract('e,e->',t1[i], (pert[m,v].copy() @ QL[ii]))
 
-        norm = 0
+        norm = 0 
         for ij in range(no*no):
             i = ij // no
+            j = ij % no
+            ii = i*no + i
+            ji = j*no + i
 
+            #Aov
             self.Aov.append(pert[o,v].copy() @ QL[ij])
-
+            
+            #Avv
             tmp = QL[ij].T @ pert[v,v].copy() @ QL[ij]
 
+            Sijmm = ccwfn.Local.Sijmm
             for m in range(no):
                 mm = m*no + m
-                tmp1 += contract('a,e->ae', t1[m], pert[m,v].copy() @ QL[mm])
-            Sijmm = self.Local.Sijmm  
-            tmp += Sijmm @ tmp1 @ Sijmm.T 
-            norm += np.linalg.norm(tmp) 
+                ijm = ij*no + m
+                tmp -= contract('a,e->ae', t1[m] @ Sijmm[ijm].T , pert[m,v].copy() @ QL[ij])
             self.Avv.append(tmp)
-           
-            tmp = QL[ij].T @ pert[v,i].copy()
-            tmp += t1[i] @ (QL[ij].T @ pert[v,v].copy() @ QL[ii]).T 
-
-            for m in range(no): 
-                tmp2 -= t1[m] * pert[m,i].copy() 
-            tmp += Sijmm @ tmp2  
             
-        self.Avo += contract('ie,ae->ai', t1, pert[v,v])
-        self.Avo -= contract('ma,mi->ai', t1, pert[o,o])
-        self.Avo += contract('miea,me->ai', (2.0*t2 - t2.swapaxes(2,3)), pert[o,v])
-        self.Avo -= contract('ie,ma,me->ai', t1, t1, pert[o,v])
+            #Avo 
+            tmp = QL[ij].T @ pert[v,i].copy()
+            tmp += t1[i] @ (QL[ij].T @ pert[v,v].copy() @ QL[ii]).T
+            
+            Sijmi = ccwfn.Local.Sijmi
+            for m in range(no):
+                mi = m*no + i
+                ijm = ij*no + m 
+                tmp -= (t1[m] @ Sijmm[ijm].T) * pert[m,i].copy()  
+                tmp1 = (2.0*t2[mi] - t2[mi].swapaxes(0,1)) @ Sijmi[ijm].T
+                tmp += contract('ea,e->a', tmp1, pert[m,v].copy() @ QL[mi]) 
+                tmp -= contract('e,a,e->a', t1[i], t1[m] @ Sijmm[ijm].T, pert[m,v].copy() @ QL[ii]) 
+            self.Avo.append(tmp)
 
-        self.Aovoo = contract('ijeb,me->mbij', t2, pert[o,v])
+            #Aovoo -> Aov_{ij}ij 
+            tmp = contract('eb,me->mb',t2[ij], pert[o,v].copy() @ QL[ij])   
+            self.Aovoo.append(tmp)
+            
+            #Avvvo -> Avvvi
+            tmp = 0  
+            for m in range(no):
+                mi = m*no + i
+                ijm = ij*no + m 
+                tmp -= contract('ab,e->abe', Sijmi[ijm] @ t2[mi] @ Sijmi[ijm].T, pert[m,v] @ QL[ij])      
+            self.Avvvo.append(tmp) 
+      
+            #Avvv_{ii}i 
 
-        self.Avvvo = -1.0*contract('miab,me->abei', t2, pert[o,v])
+            #Avvoo -> Aoovv -> Aijv_{ij} V_{ij}
+        for i in range(no):
+            for j in range(no):
+                ij = i*no + j
+                ji = j*no + i
+                tmp = contract('eb,ae->ab', t2[ij], self.Avv[ij]) 
+                Sijmj = ccwfn.Local.Sijmj
+                for m in range(no):
+                    mj = m*no + j
+                    mi = m*no + i 
+                    ijm = ij*no + m
+                    jim = ji*no + m
+                    Sjimi = QL[ji].T @ QL[mi]
+                    tmp -= (Sijmj[ijm]  @ t2[mj] @ Sijmj[ijm].T) * self.Aoo[m,i].copy()  
+                lAvvoo.append(tmp)    
 
-        # Note that Avvoo is permutationally symmetric, unlike the implementation in ugacc
-        self.Avvoo = contract('ijeb,ae->ijab', t2, self.Avv)
-        self.Avvoo -= contract('mjab,mi->ijab', t2, self.Aoo)
-        self.Avvoo = 0.5*(self.Avvoo + self.Avvoo.swapaxes(0,1).swapaxes(2,3))
+        norm = 0 
+        for i in range(no):
+            for j in range(no):
+                ij = i*no + j 
+                ji = j*no + i 
+                self.Avvoo.append(0.5 * (lAvvoo[ij].copy() + lAvvoo[ji].copy().transpose()))
+                norm += np.linalg.norm( 0.5 * (lAvvoo[ij].copy() + lAvvoo[ji].copy().transpose()))                  

@@ -83,13 +83,13 @@ class ccdensity(object):
             l1 = self.cclambda.l1
             t2 = self.lccwfn.t2 
             l2 = self.cclambda.l2
-            self.Doo, oo_energy = self.build_lDoo(t1, t2, l1, l2)
-            self.Dvv, vv_energy = self.build_lDvv(t1, t2, l1, l2)
-            self.Dov, ov_energy = self.build_lDov(t1, t2, l1, l2)
-            print("=== lDoo ===\n", self.Doo)
-            print("=== lDvv ===\n",self.Dvv)
-            print("=== lDov ===\n", self.Dov)
-            print("Local energy:\n", self.compute_local_energy(t1, t2, l1, l2))
+            #self.Doo, oo_energy = self.build_lDoo(t1, t2, l1, l2)
+            #self.Dvv, vv_energy = self.build_lDvv(t1, t2, l1, l2)
+            #self.Dov, ov_energy = self.build_lDov(t1, t2, l1, l2)
+            #print("=== lDoo ===\n", self.Doo)
+            #print("=== lDvv ===\n",self.Dvv)
+            #print("=== lDov ===\n", self.Dov)
+            #print("Local energy:\n", self.compute_local_energy(t1, t2, l1, l2))
         else: 
             F = ccwfn.H.F
             ERI = ccwfn.H.ERI
@@ -103,16 +103,16 @@ class ccdensity(object):
             #self.Dvo = self.build_Dvo(l1)
             self.Dvv = self.build_Dvv(t1, t2, l1, l2)
             self.Doo = self.build_Doo(t1, t2, l1, l2)
-            reg_energy = self.vv_energy + self.oo_energy
-            print("===========Regular Energy=========\n", reg_energy)
-            print("===========vv Energy=========\n", self.vv_energy)
+            #reg_energy = self.vv_energy + self.oo_energy
+            #print("===========Regular Energy=========\n", reg_energy)
+            #print("===========vv Energy=========\n", self.vv_energy)
 
-            print(self.Doo)
-            if self.ccwfn.filter is True:
-                Q = self.ccwfn.Local.Q
-                L = self.ccwfn.Local.L
-                for ij in range(self.no**2):
-                    print("Dvv_ij", ij, (Q[ij] @ L[ij]).T @ self.Dvv @ (Q[ij] @ L[ij]))
+            #print(self.Doo)
+            #if self.ccwfn.filter is True:
+                #Q = self.ccwfn.Local.Q
+                #L = self.ccwfn.Local.L
+                #for ij in range(self.no**2):
+                    #print("Dvv_ij", ij, (Q[ij] @ L[ij]).T @ self.Dvv @ (Q[ij] @ L[ij]))
             #print(self.Dvv)
             self.onlyone = onlyone
 
@@ -280,8 +280,8 @@ class ccdensity(object):
             for ij in range (self.ccwfn.no * self.ccwfn.no):
                 i = ij // self.ccwfn.no
                 j = ij % self.ccwfn.no
-                ii = i * self.no + i
-                jj = j * self.no + j
+                ii = i * self.ccwfn.no + i
+                jj = j * self.ccwfn.no + j
                 Q = self.ccwfn.Local.Q
                 L = self.ccwfn.Local.L
                 Q_i = Q[ii] @ L[ii]

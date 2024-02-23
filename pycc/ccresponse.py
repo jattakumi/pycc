@@ -12,6 +12,7 @@ import numpy as np
 import time
 from .utils import helper_diis
 from .cclambda import cclambda
+#from .local import local 
 
 class ccresponse(object):
     """
@@ -51,8 +52,6 @@ class ccresponse(object):
         # self.l1 = self.cclambda.l1
         # self.l2 = self.cclambda.l2
         self.no = self.ccwfn.no
-        if self.ccwfn.local is not None:
-            self.Local = self.ccwfn.Local
 
         if self.ccwfn.local is not None and self.ccwfn.filter is not True: 
             self.lccwfn = ccdensity.lccwfn
@@ -74,8 +73,10 @@ class ccresponse(object):
                 key = "MU_" + self.cart[axis]
                 self.lpertbar[key] = lpertbar(self.H.mu[axis], self.ccwfn, self.lccwfn)
 
-<<<<<<< HEAD
         else: 
+            if self.ccwfn.local is not None:
+                self.Local = self.ccwfn.Local
+
             # Cartesian indices
             self.cart = ["X", "Y", "Z"]
     
@@ -119,22 +120,22 @@ class ccresponse(object):
             #         ij += 1
     
             # HBAR-based denominators
-            eps_occ = np.diag(self.hbar.Hoo)
-            eps_vir = np.diag(self.hbar.Hvv)
-            self.Dia = eps_occ.reshape(-1,1) - eps_vir
-
-        # HBAR-based denominators
-        #modying to only run in simulation code
-        if self.ccwfn.filter is True:
-            eps_occ = np.diag(self.hbar.Hoo)
-            print("eps_occ", eps_occ)
-            eps_vir = np.diag(self.hbar.Hvv)
-            for i in range(self.ccwfn.no):
-                for j in range(self.ccwfn.no):
-                    ij = i*self.ccwfn.no + j
-                    print("eps_vir_ij", ij, (self.Local.Q[ij] @ self.Local.L[ij]).T @ eps_vir @ (self.Local.Q[ij] @ self.Local.L[ij]))
-            self.Dia = eps_occ.reshape(-1,1) #- eps_vir
-            self.Dijab = eps_occ.reshape(-1,1,1,1) + eps_occ.reshape(-1,1,1) - eps_vir.reshape(-1,1) - eps_vir
+            #modying to only run in simulation code
+            if self.ccwfn.filter is True:
+                eps_occ = np.diag(self.hbar.Hoo)
+                #print("eps_occ", eps_occ)
+                eps_vir = np.diag(self.hbar.Hvv)
+                #tmp = 0 
+                #for i in range(self.ccwfn.no):
+                    #ii = i*self.ccwfn.no + i 
+                    #QL = self.ccwfn.Local.Q[ii] @ self.ccwfn.Local.L[ii] 
+                    #tmp = QL.T @ self.hbar.Hvv @ QL
+                    #tmp = QL @ tmp @ QL.T                   
+                    #print("eps_vir[ii]", ii, np.diag(QL.T @ self.hbar.Hvv @ QL)) 
+                #print("reshaped eps_occ", eps_occ.reshape(-1,1))
+                #eps_vir = np.diag(tmp)
+                self.Dia = eps_occ.reshape(-1,1) #- eps_vir
+                self.Dijab = eps_occ.reshape(-1,1,1,1) + eps_occ.reshape(-1,1,1) #- eps_vir.reshape(-1,1) - eps_vir
 
     def pertcheck(self, omega, e_conv=1e-13, r_conv=1e-13, maxiter=200, max_diis=8, start_diis=1):
         """
@@ -537,16 +538,22 @@ class ccresponse(object):
 
         Dia = self.Dia
         Dijab = self.Dijab
-
+        
         # initial guess
-
         X1 = pertbar.Avo.T /(Dia) # + omega)
         X2 = pertbar.Avvoo/(Dijab) # + omega)
-        for i in range(self.ccwfn.no):
-            ii = i*self.ccwfn.no + i
-            QL = self.Local.Q[ii] @ self.Local.L[ii]
-            print("Avo", i, pertbar.Avo[:,i].T @ QL)
-            print("X", i, X1[i] @ QL)
+
+        X1, X2 = self.ccwfn.Local.filter_res(X1, X2)
+
+        #for i in range(self.ccwfn.no):
+            #ii = i*self.ccwfn.no + i
+            #QL = self.Local.Q[ii] @ self.Local.L[ii]
+            #print("Avo", i, pertbar.Avo[:,i].T @ QL)
+            #eps_vir =  np.diag(QL.T @ self.hbar.Hvv @ QL)
+            #for a in range(self.ccwfn.Local.dim[ii]):
+            #     X1[a] /= eps_occ[i] - eps_vir[a] 
+            #print("X", i, X1[i] @ QL)
+
         pseudo = self.pseudoresponse(pertbar, X1, X2)
         print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}")
 
@@ -566,12 +573,12 @@ class ccresponse(object):
             r2 = self.r_X2(pertbar, omega)
 
             if self.ccwfn.local is not None:
-                inc1, inc2 = self.ccwfn.Local.filter_amps(r1, r2)
+                inc1, inc2 = self.ccwfn.Local.filter_pertamps(r1, r2, self.hbar)
                 self.X1 += inc1
                 self.X2 += inc2
-
-                rms = contract('ia,ia->', np.conj(inc1 / (Dia + omega)), inc1 / (Dia)) # + omega))
-                rms += contract('ijab,ijab->', np.conj(inc2 / (Dijab + omega)), inc2 / (Dijab)) # + omega))
+                     
+                rms = contract('ia,ia->', np.conj(inc1 / (Dia )), inc1 / (Dia)) # + omega))
+                rms += contract('ijab,ijab->', np.conj(inc2 / (Dijab)), inc2 / (Dijab)) # + omega))
                 rms = np.sqrt(rms)
             else:
                 self.X1 += r1 / (Dia + omega)
@@ -599,69 +606,65 @@ class ccresponse(object):
             #if niter >= start_diis:
             #    self.X1, self.X2 = diis.extrapolate(self.X1, self.X2)
 
-    def local_solve_right(self, pertbar, omega, Q, L, dim, eps, Hoo, e_conv=1e-12, r_conv=1e-12, maxiter=200):#max_diis=7, start_diis=1):
+    def local_solve_right(self, lpertbar, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200):#max_diis=7, start_diis=1):
         solver_start = time.time()
 
-        #Dia = self.Dia
-        #Dijab = self.Dijab
         no = self.no
 
-        eps_occ = np.diag(Hoo)
-        print("eps_occ", eps_occ)
+        
+        eps_occ = np.diag(self.cchbar.Hoo)
+        #print("eps_occ", eps_occ)
         eps_lvir = []
-        eps_vir = np.diag(self.hbar.Hvv)
-        for ij in range(no*no):
-            QL = Q[ij] @ L[ij]
-            eps_lvir.append(QL.T @ eps_vir @ QL)
-            print("eps_lvir_ij", ij, QL.T @ eps_vir @ QL)
+        #eps_vir = np.diag(self.cchbar.Hvv)
+        #for i in range(no):
+            #ii = i *no + i 
+           #for j in range(no):
+                #ij = i*no + j 
+                #eps_lvir.append(np.diag(self.cchbar.Hvv[ij]))
+                #print("eps_lvir_ij", ij, self.cchbar.Hvv[ij])
         contract =self.contract
 
-        # Q = self.ccwfn.Local.Q
-        # L = self.ccwfn.Local.L
-        #hbar = self.hbar
-        Avo = pertbar.Avo
-        Avvoo = pertbar.Avvoo
-        self.Avo = []
+        Q = self.Local.Q
+        L = self.Local.L
+        Avo = lpertbar.Avo.copy()
+        Avvoo = lpertbar.Avvoo.copy()
+ 
         self.X1 = []
         self.X2 = []
-        norm = 0
+        #norm = 0
         for i in range(no):
             ii = i * no + i
             QL_ii = Q[ii] @ L[ii]
-            #Xv{ii}
-            lX1 = (contract('a, aA -> A', Avo[:,i], QL_ii))/ (eps_occ[i] - eps_lvir[ii].reshape(-1,))
 
-            # print("X", lX1)
-            norm += np.linalg.norm(lX1)
+            #Xv{ii}
+            lX1 = Avo[ii].copy()
+            eps_lvir = self.cchbar.Hvv[ii] 
+            #print("length of eps_lvir", len(eps_lvir))
+            for a in range(self.Local.dim[ii]):
+                lX1[a] /= (eps_occ[i]) #  - eps_lvir[a,a])
+            #print("X", ii, lX1)
+            #norm += np.linalg.norm(lX1)
             self.X1.append(lX1)
-            for j in range(no):
-                ij = i * no + j
-                QL_ij = Q[ij] @ L[ij]
-                lAvo = (pertbar.Avo.T @ QL_ij).T
+            #for j in range(no):
+                #ij = i * no + j
+                #QL_ij = Q[ij] @ L[ij]
                 # if ij == ii:
                     # print("Avo", i, lAvo[:,i])
-                self.Avo.append(lAvo)
-                lX2 = np.zeros((no, no, dim[ij], dim[ij]))
-                lX2 = contract('ab, aA, bB -> AB', Avvoo[i,j] , QL_ij, QL_ij)/(eps[ij].reshape(1,-1) + eps[ij].reshape(-1,1)
-                    - self.H.F[i,i] - self.H.F[j,j] + omega)
-                self.X2.append(lX2)
+                #lX2 = np.zeros((no, no, dim[ij], dim[ij]))
+                #lX2 = contract('ab, aA, bB -> AB', Avvoo[i,j] , QL_ij, QL_ij)/(eps[ij].reshape(1,-1) + eps[ij].reshape(-1,1)
+                #    - self.H.F[i,i] - self.H.F[j,j] + omega)
+                #self.X2.append(lX2)
 
                 # lX2 = np.zeros((no, no, self.Local.dim[ij], self.Local.dim[ij]))
                 # lX2 += contract('ijab, aA, bB -> ijAB', self.X2, QL_ij, QL_ij)
                 # self.X2.append(lX2)
-        print("X_inital", norm)
-        # initial guess
-        #X1 = Avo.T/(Dia + omega)
-        # X2 = pertbar.Avvoo/(Dijab + omega)
+        #print("X_inital", norm)
 
-        pseudo = self.local_pseudoresponse(pertbar, self.X1, self.X2, omega)
+        pseudo = self.local_pseudoresponse(lpertbar, self.X1, self.X2, omega)
         print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}")
 
         #diis = helper_diis(X1, X2, max_diis)
         contract = self.ccwfn.contract
-
-        #self.X1 = X1
-        # self.X2 = X2
 
         for niter in range(1, maxiter+1):
             pseudo_last = pseudo
@@ -669,22 +672,24 @@ class ccresponse(object):
             X1 = self.X1
             # X2 = self.X2
 
-            r1 = self.lr_X1(pertbar, omega, Q, L, dim)
+            r1 = self.lr_X1(lpertbar, omega)
             # r2 = self.r_X2(pertbar, omega)
 
             #start loop
             rms = 0
             for i in range(no):
                 ii = i * no + i
-                self.X1[i] += r1[i] / (eps_occ[i] - eps_lvir[ii].reshape(-1,)) # + omega)
+                 
+                #commented out error prone component
+                self.X1[i] += r1[i] / (eps_occ[i]) #  - eps_lvir[ii].reshape(-1,)) # + omega)
             # self.X2 += r2 / (Dijab + omega)
 
-                rms += contract('a,a->', np.conj(r1[i] / (eps[ii].reshape(-1,) - self.H.F[i,i] + omega)), r1[i] / (eps[ii].reshape(-1,) - self.H.F[i,i] + omega))
+                rms += contract('a,a->', np.conj(r1[i] / (eps_occ[i])), (r1[i] / (eps_occ[i])))
             # rms += contract('ijab,ijab->', np.conj(r2 / (Dijab + omega)), r2 / (Dijab + omega))
             rms = np.sqrt(rms)
             #end loop
 
-            pseudo = self.local_pseudoresponse(pertbar, self.X1, self.X2, omega)
+            pseudo = self.local_pseudoresponse(lpertbar, self.X1, self.X2, omega)
             pseudodiff = np.abs(pseudo - pseudo_last)
             print(f"Iter {niter:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudodiff:.5E} rms = {rms.real:.5E}")
 
@@ -799,42 +804,18 @@ class ccresponse(object):
 
         return r_X1
 
-    def lr_X1(self, pertbar, omega, Q, L, dim):
+    def lr_X1(self, lpertbar, omega):
         contract = self.contract
-        no = self.no
-        # Q = self.ccwfn.Local.Q
-        # L = self.ccwfn.Local.L
+        no = self.ccwfn.no
         hbar = self.hbar
-        # Avo = self.Avo
+        Avo = lpertbar.Avo
 
-        Avo = []
         lr_X1_all = []
-        #Avo = []
-        # self.X1
-        # self.X2
-        #for i in range(no):
-            # ii = i * no + i
-            # QL_ii = Q[ii] @ L[ii]
-            # lX1 = contract('ia, aA -> iA', self.X1, QL_ii)
-            # self.X1.append(lX1)
-            #for j in range(no):
-                #ij = i * no + j
-                #QL_ij = Q[ij] @ L[ij]
-                #Av{ij}o
-                #lAvo = (pertbar.Avo.T @ QL_ij).T
-                #Avo.append(lAvo)
-                # lX2 = np.zeros((no, no, self.Local.dim[ij], self.Local.dim[ij]))
-                # lX2 += contract('ijab, aA, bB -> ijAB', self.X2, QL_ij, QL_ij)
-                # self.X2.append(lX2)
         for i in range(no):
             ii = i*no + i
-            for j in range(no):
-                ij = i * no + j
-                QL_ij = Q[ij] @ L[ij]
-                lAvo = (pertbar.Avo.T @ QL_ij).T
-                Avo.append(lAvo)
+
             # lr_X1 += contract('e, ae -> a', self.X1[i], hbar.Hvv)
-            lr_X1 = (Avo[ii][:,i].T - omega * self.X1[i]).copy()
+            lr_X1 = (Avo[ii] - omega * self.X1[i]).copy()
             # for m in range(no):
             #     # lr_X1 -= contract('ma, mi -> ia', X1, hbar.Hoo)
             #     lr_X1 -= contract('a, i -> ia', self.X1[m], hbar.Hoo[m])
@@ -847,10 +828,6 @@ class ccresponse(object):
         # lr_X1 -= contract('mnae, mnie -> ia', X2, (2.0 * hbar.Hooov -hbar.Hooov.swapaxes(0, 1)))
 
         return lr_X1_all
-
-
-
-
 
     def r_X2(self, pertbar, omega):
         contract = self.contract
@@ -1201,42 +1178,30 @@ class ccresponse(object):
 
     def pseudoresponse(self, pertbar, X1, X2):
         contract = self.ccwfn.contract
-        print("X_sim", np.linalg.norm(X1))
-        print("A_sim", np.linalg.norm(np.conj(pertbar.Avo)))
+        #polar3 = 0 
+        for i in range(self.ccwfn.no):
+            ii = i*self.ccwfn.no + i  
+            QL = self.ccwfn.Local.Q[ii] @ self.ccwfn.Local.L[ii]
+            #print("Avo in psuedo", pertbar.Avo[:,i] @ QL)
+            #print("X in psuedo", X1[i] @ QL)  
+            #polar3 += 2.0 * contract('a,a->', pertbar.Avo[:,i] @ QL, X1[i] @ QL) 
         polar1 = 2.0 * contract('ai,ia->', np.conj(pertbar.Avo), X1)
         # polar2 = 2.0 * contract('ijab,ijab->', np.conj(pertbar.Avvoo), (2.0*X2 - X2.swapaxes(2,3)))
-
+        #print("polar3", polar3)
         return -2.0*(polar1) #+ polar2)
 
-    def local_pseudoresponse(self, pertbar, X1, X2, omega):
+    def local_pseudoresponse(self, lpertbar, X1, X2, omega):
         contract = self.ccwfn.contract
         no = self.no
-        # Q = self.ccwfn.Local.Q
-        # L = self.ccwfn.Local.L
-        Avo = self.Avo
+        Avo = lpertbar.Avo
         polar1 = 0
         norm = 0
         norm_1 = 0
         for i in range(no):
             ii = i * no + i
-            #QL_ii = Q[ii] @ L[ii]
-            #lX1 = contract('a, aA -> A', pertbar.Avo[:, i], QL_ii)/ (self.Local.eps[ii].reshape(-1, ) - self.H.F[i, i] + omega)
-            #X1.append(lX1)
-            #for j in range(no):
-                #ij = i * no + j
-                #QL_ij = Q[ij] @ L[ij]
-                #lAvo = (pertbar.Avo.T @ QL_ij).T
-                #Avo.append(lAvo)
-                #lX2 = np.zeros((no, no, self.Local.dim[ij], self.Local.dim[ij]))
-                #lX2 += contract('ab, aA, bB -> AB', pertbar.Avvoo[i, j], QL_ij, QL_ij)/(
-                #            self.Local.eps[ij].reshape(1, -1) + self.Local.eps[ij].reshape(-1, 1)
-                #            - self.H.F[i, i] - self.H.F[j, j] + omega)
-                #X2.append(lX2)
-            norm += np.linalg.norm(X1[i])
-            norm_1 += np.linalg.norm(Avo[ii][:,i])
-            polar1 += 2.0 * contract('a,a->', Avo[ii][:, i], X1[i])
-        print("X", norm)
-        print("A", norm_1)
+            #print("Avo in psuedo", ii, Avo[ii]) 
+            #print("X in psuedo", ii, X1[i])
+            polar1 += 2.0 * contract('a,a->', Avo[ii].copy(), X1[i].copy())
         # polar2 = 2.0 * contract('ijab,ijab->', np.conj(pertbar.Avvoo), (2.0*X2 - X2.swapaxes(2,3)))
 
         return -2.0*(polar1) #+ polar2)

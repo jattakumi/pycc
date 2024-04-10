@@ -16,11 +16,24 @@ from opt_einsum import contract
 import os
 
 hf = """
-F 0.0000000 0.0000000  -0.087290008493927
-H 0.0000000 0.0000000 1.645494724632280
+#F 0.0000000 0.0000000  -0.087290008493927
+#H 0.0000000 0.0000000 1.645494724632280
+H   -0.000000000000     0.000000000000    -1.866311312218
+F    0.000000000000     0.000000000000     0.099003860602
 units bohr
 no_reorient
 symmetry c1
+"""
+
+geom_inp ="""
+N -0.000000    0.000000    0.127486
+H  0.000000    0.932442   -0.297468
+H -0.807519   -0.466221   -0.297468
+H  0.807519   -0.466221   -0.297468
+units angstrom
+no_reorient
+symmetry c1
+nocom
 """
 
 ## local code 
@@ -28,8 +41,8 @@ symmetry c1
 # Psi4 Setup
 psi4.set_memory('2 GB')
 psi4.core.set_output_file('output.dat', False)
-psi4.set_options({'basis': 'cc-pvdz',
-                  'scf_type': 'pk',
+psi4.set_options({'basis': 'cc-pVDZ',
+                  'scf_type': 'direct',
                   'e_convergence': 1e-12,
                   'd_convergence': 1e-12,
                   'r_convergence': 1e-12,
@@ -37,14 +50,17 @@ psi4.set_options({'basis': 'cc-pvdz',
 })
 
 mol = psi4.geometry(hf)
+#computing total dipole up to CCSD but only grabbing SCF dipole variable
+psi4.properties('CCSD', properties=['dipole'])
+dpz_scf = psi4.core.variable('SCF DIPOLE')
 
-PNO_cutoff = 0
+PNO_cutoff = 1e-03
 basis = 'PNO'
 rhf_e, rhf_wfn = psi4.energy('SCF', return_wfn=True)
-ccsd_local = pycc.ccwfn(rhf_wfn, model= 'CCSD', local=basis, local_cutoff = PNO_cutoff, filter=False)
+ccsd_local = pycc.ccwfn(rhf_wfn, model= 'CCSD', local_mos='BOYS', local=basis, local_cutoff = PNO_cutoff, filter=False)
 
-e_conv = 1e-8
-r_conv = 1e-8
+e_conv = 1e-12
+r_conv = 1e-12
 maxiter = 200
 
 eccsd = ccsd_local.lccwfn.solve_lcc(e_conv, r_conv, maxiter)
@@ -132,4 +148,13 @@ print("oo", mu_z_oo)
 #        mu_z_vv += lDvv[no + a,no+ b] * lmu_vv[no + a,no + b]
 #
 #print("added ab", mu_z_vv)
-print("total", mu_z_oo + mu_z_ov + mu_z_vv + mu_z_vo) #+ dpz_scf)
+print("electric contribution:", mu_z_oo + mu_z_ov + mu_z_vv + mu_z_vo)
+# nuclear contribution
+nuc_con = mol.nuclear_dipole()
+cc_dipole = mu_z_oo + mu_z_ov + mu_z_vv + mu_z_vo 
+scf_dipole = dpz_scf[2] - nuc_con[2]
+nuc_dipole = nuc_con[2]
+#print("Dipole moment:", cc_dipole) 
+print("Scf", scf_dipole)
+print("nuc", nuc_dipole)
+print("Dipole moment", cc_dipole + scf_dipole + nuc_dipole)

@@ -9,9 +9,9 @@ if __name__ == "__main__":
 import numpy as np
 import time
 from opt_einsum import contract
-from .utils import helper_diis
+from utils import helper_diis
 import torch
-from .cctriples import t3c_ijk, l3_ijk, l3_ijk_alt
+from cctriples import t3c_ijk, l3_ijk, l3_ijk_alt
 
 class cclambda(object):
     """
@@ -265,9 +265,9 @@ class cclambda(object):
           
                         r_l1 = r_l1 + contract('ef,eaf->a', Gvv[mn], Hvovvs[imn])
 
-                        r_l1 = r_l1 - 2.0 * Goo[m,n] * Hmine[imn]
+                        r_l1 = r_l1 - 2.0 * Goo[m,n] * Hmine[iimn]
                         
-                        r_l1 = r_l1 + Goo[m,n] * Himne[imn]
+                        r_l1 = r_l1 + Goo[m,n] * Himne[iimn]
 
                 lr_l1.append(r_l1)
                  

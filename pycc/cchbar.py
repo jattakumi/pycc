@@ -111,17 +111,17 @@ class cchbar(object):
             self.Local.QL, self.lccwfn.t1,self.lccwfn.t2) 
             self.Hoooo = self.build_lHoooo(o, v, ccwfn.no, ERI, self.Local.ERIoovv, self.Local.ERIooov, 
             self.Local.QL, self.lccwfn.t1, self.lccwfn.t2) 
-            self.Hvvvv, self.Hvvvv_im = self.build_lHvvvv( o, v, ccwfn.no, ERI, self.Local.ERIoovv, self.Local.ERIvovv, self.Local.ERIvvvv, 
+            self.Hvvvv, self.Hvvvv_im, self.Hvvvv_ij = self.build_lHvvvv( o, v, ccwfn.no, ERI, self.Local.ERIoovv, self.Local.ERIvovv, self.Local.ERIvvvv, 
             self.Local.QL, self.lccwfn.t1, self.lccwfn.t2) 
-            self.Hvovv_ii, self.Hvovv_imn, self.Hvovv_imns = self.build_lHvovv(o,v,ccwfn.no, ERI, self.Local.ERIvovv, self.Local.ERIoovv, self.Local.QL, self.lccwfn.t1)
-            self.Hjiov, self.Hijov, self.Hmine, self.Himne = self.build_lHooov(o, v, ccwfn.no, ERI, self.Local.ERIooov, self.Local.QL, self.lccwfn.t1) 
-            self.Hovvo_mi, self.Hovvo_mj, self.Hovvo_mm  = self.build_lHovvo(o, v, ccwfn.no, ERI, L, self.Local.ERIovvo, self.Local.QL, 
+            self.Hvovv_ii, self.Hvovv_imn, self.Hvovv_imns, self.Hamef, self.Hamfe, self.Hvovv_ij, self.Hfjea, self.Hfibe, self.Hfieb, self.Hfmae, self.Hfmea = self.build_lHvovv(o,v,ccwfn.no, ERI, self.Local.ERIvovv, self.Local.ERIoovv, self.Local.QL, self.lccwfn.t1)
+            self.Hjiov, self.Hijov, self.Hmine, self.Himne, self.Hmnie, self.Hnmie, self.Hjmna, self.Hmjna, self.Hjine, self.Hmine_mm, self.Himne_mm = self.build_lHooov(o, v, ccwfn.no, ERI, self.Local.ERIooov, self.Local.QL, self.lccwfn.t1) 
+            self.Hovvo_mi, self.Hovvo_mj, self.Hovvo_mm, self.Hovvo_im, self.Hmvvj_mi = self.build_lHovvo(o, v, ccwfn.no, ERI, L, self.Local.ERIovvo, self.Local.QL, 
             self.lccwfn.t1, self.lccwfn.t2)
-            self.Hovov_mi, self.Hovov_mj, self.Hovov_mm  = self.build_lHovov(o, v, ccwfn.no, ERI, self.Local.ERIovov, self.Local.ERIooov, self.Local.QL,
+            self.Hovov_mi, self.Hovov_mj, self.Hovov_mm, self.Hovov_im = self.build_lHovov(o, v, ccwfn.no, ERI, self.Local.ERIovov, self.Local.ERIooov, self.Local.QL,
             self.lccwfn.t1,self.lccwfn.t2)
-            self.Hvvvo_im = self.build_lHvvvo(o, v, ccwfn.no, ERI, L, self.Local.ERIvvvo, self.Local.ERIoovo, self.Local.ERIvoov, self.Local.ERIvovo, 
+            self.Hvvvo_im, self.Hvvvo_ij = self.build_lHvvvo(o, v, ccwfn.no, ERI, L, self.Local.ERIvvvo, self.Local.ERIoovo, self.Local.ERIvoov, self.Local.ERIvovo, 
             self.Local.ERIoovv, self.Local.Loovv, self.Local.QL,self.lccwfn.t1, self.lccwfn.t2, self.Hov, self.Hvvvv, self.Hvvvv_im)
-            self.Hovoo_mn = self.build_lHovoo(o, v, ccwfn.no, ERI, L, self.Local.ERIovoo, self.Local.ERIovvv, self.Local.ERIooov,
+            self.Hovoo_mn, self.Hovoo_ij = self.build_lHovoo(o, v, ccwfn.no, ERI, L, self.Local.ERIovoo, self.Local.ERIovvv, self.Local.ERIooov,
             self.Local.ERIovov, self.Local.ERIvoov, self.Local.Looov, self.Local.QL, self.lccwfn.t1, self.lccwfn.t2, self.Hov, self.Hoooo)
 
         print("\nHBAR constructed in %.3f seconds.\n" % (time.time() - time_init))
@@ -465,6 +465,56 @@ class cchbar(object):
                             Hvvvv_im = Hvvvv_im + contract('a,b,ef->abef',tmp, tmp2, tmp1)
                     lHvvvv_im.append(Hvvvv_im)
 
+            #Hv_ij v_ij v_ii v_jj - Eqn 148
+            lHvvvv_ij = []
+            for i in range(no):
+                ii = i*no + i
+                for j in range(no):
+                    ij = i*no + j
+                    jj = j*no + j
+
+                    #first term
+                    Hvvvv_ij = contract('abcd, aA -> Abcd', ERI[v,v,v,v], QL[ij])
+                    Hvvvv_ij = contract('Abcd, bB -> ABcd', Hvvvv_ij, QL[ij])
+                    Hvvvv_ij = contract('ABcd, cC -> ABCd', Hvvvv_ij, QL[ii])
+                    Hvvvv_ij = contract('ABCd, dD -> ABCD', Hvvvv_ij, QL[jj])
+
+                    for m in range(no):
+                        mm = m*no + m
+                        ijm = ij*no + m
+
+                        #second term
+                        tmp = t1[m] @ Sijmm[ijm].T
+                        tmp1 = contract('aef,aA -> Aef', ERI[v,m,v,v], QL[ij])
+                        tmp2 = contract('Aef,eE -> AEf', tmp1, QL[ii])
+                        tmp2 = contract('AEf, fF -> AEF', tmp2, QL[jj])
+                        tmp2 = contract('b,aef->abef',tmp, tmp2)
+
+                        #third term
+                        tmp1 = contract('Aef,eE->AEf', tmp1, QL[jj])
+                        tmp1 = contract('AEf, fF -> AEF', tmp1, QL[ii])
+                        tmp1 = contract('b,aef->abef',tmp, tmp1)
+                        Hvvvv_ij = Hvvvv_ij - (tmp2 + tmp1.swapaxes(0,1).swapaxes(2,3))
+
+                        for n in range(no):
+                            mn = m*no + n
+                            nn = n*no + n
+                            ijmn = ij*(no**2) + mn
+                            ijn = ij*no + n
+
+                            #fourth term
+                            tmp = Sijmn[ijmn] @ t2[mn]
+                            tmp = tmp @ Sijmn[ijmn].T
+                            tmp1 = contract('ef,eE->Ef', ERI[m,n,v,v], QL[ii])
+                            tmp1 = contract('Ef, fF -> EF', tmp1, QL[jj])
+                            Hvvvv_ij = Hvvvv_ij + contract('ab,ef->abef',tmp, tmp1)
+                            
+                            #fifth term
+                            tmp = t1[m] @ Sijmm[ijm].T
+                            tmp2 = t1[n] @ Sijmm[ijn].T
+                            Hvvvv_ij = Hvvvv_ij + contract('a,b,ef->abef',tmp, tmp2, tmp1)
+                    lHvvvv_ij.append(Hvvvv_ij)
+
             #Hv_ij v_ij v_ij v_ij - Eqn 92
             for ij in range(no*no):
                 Hvvvv = ERIvvvv[ij].copy()
@@ -492,7 +542,7 @@ class cchbar(object):
                         tmp1 = t1[n] @ Sijmm[ijn].T 
                         Hvvvv = Hvvvv + contract('a,b,ef->abef',tmp, tmp1, ERIoovv[ij][m,n]) 
                 lHvvvv.append(Hvvvv)  
-        return lHvvvv, lHvvvv_im            
+        return lHvvvv, lHvvvv_im, lHvvvv_ij            
 
     def build_Hvvvv(self, o, v, ERI, t1, t2):
         contract = self.contract
@@ -529,6 +579,9 @@ class cchbar(object):
             lHvovv_ii = []
             lHvovv_imn = []
             lHvovv_imns = []
+            lHamef = []
+            lHamfe = []
+            lHfjea = []
 
             #Hv_mn i v_ii v_mn -> Hvovv_imns - Eqn 95  
             for i in range(no):
@@ -577,6 +630,35 @@ class cchbar(object):
                             tmp1 = contract('Ef, fF -> EF', tmp1, QL[ii])
                             Hvovv_imn = Hvovv_imn - contract('a,ef->aef', tmp, tmp1)     
                         lHvovv_imn.append(Hvovv_imn)
+
+            #H a_ij m e_ij f_mm - Eqn 160
+            #H a_ij m f_mm e_ij - Eqn 161
+            Sijii = self.Local.Sijii
+            for i in range(no):
+                ii = i*no + i
+                for j in range(no):
+                    ij = i*no + j
+                    for m in range(no):
+                        mm = m*no + m
+                        ijm = ij*no + m
+
+                        #first term
+                        Hamef = contract('aef,aA, eE, fF -> AEF', ERI[v,m,v,v], QL[ij], QL[ij], QL[mm])
+                        Hamfe = contract('afe,aA, fF, eE -> AFE', ERI[v,m,v,v], QL[ij], QL[mm], QL[ij])
+                        for n in range(no):
+                            ijn = ij*no + n
+                            
+                            tmp = t1[n] @ Sijmm[ijn].T 
+                            tmp1 = contract('ef,eE ->Ef', ERI[n,m,v,v], QL[ij])
+                            tmp1 = contract('Ef, fF -> EF', tmp1, QL[mm])
+                            Hamef = Hamef - contract('a,ef->aef', tmp, tmp1)
+ 
+                            tmp1 = contract('fe,fF ->Fe', ERI[n,m,v,v], QL[mm])
+                            tmp1 = contract('Fe, eE -> FE', tmp1, QL[ij])
+                            Hamfe = Hamfe - contract('a,fe->afe', tmp, tmp1)
+
+                        lHamef.append(Hamef)
+                        lHamfe.append(Hamfe)
  
             # Hv_ii o v_ij v_ij - Eqn 97 
             for ij in range(no*no):
@@ -597,18 +679,152 @@ class cchbar(object):
                     Hvovv_ii = Hvovv_ii - contract('a,mef->amef',tmp, ERIoovv[ij][n,:])
                 lHvovv_ii.append(Hvovv_ii) 
 
-            #Hvovv_ij - not needed for lambda but may be needed for other eqns 
-            #for ij in range(no*no):
+            #Hvovv_ij - part of Eqn 165 
+            for ij in range(no*no):
                 
-                #Hvovv = ERIvovv[ij].copy()
-                #for n in range(no):
-                    #nn = n*no + n
+                Hvovv = ERIvovv[ij].copy()
+                for n in range(no):
+                    nn = n*no + n
                     
-                    #Sijnn = QL[ij].T @ QL[nn] 
-                    #tmp = t1[n] @ Sijnn.T 
-                    #Hvovv_1 -= contract('a,mef->amef',tmp, ERIoovv[ij][n,:])
-                #lHvovv.append( Hvovv + Hvovv_1)       
-        return lHvovv_ii, lHvovv_imn, lHvovv_imns
+                    Sijnn = QL[ij].T @ QL[nn] 
+                    tmp = t1[n] @ Sijnn.T 
+                    Hvovv -= contract('a,mef->amef',tmp, ERIoovv[ij][n,:])
+                lHvovv.append(Hvovv)
+
+            #Hf{im}je{mm}a{ij} - part of Eqn 165, eqn 166 
+            Sijim = self.Local.Sijim
+            Sijmm = self.Local.Sijmm
+            for ij in range(no*no):
+                i = ij // no
+                j = ij % no
+                ii = i*no + i  
+                for m in range(no):
+                    mm = m*no + m
+                    im = i*no + m
+                    iim = ii*no + m
+                    ijm = ij*no + m
+                    imm = im*no + m
+
+                    Hfjea = contract('fea, fF, eE, aA -> FEA', ERI[v,j,v,v], QL[im], QL[mm], QL[ij])
+                      
+                    for n in range(no):
+                        imn = im * no + n
+
+                        tmp = t1[n] @ Sijmm[imn].T
+                        Hfjea -= contract('f,ea->fea', tmp, QL[mm].T @ ERI[n,j,v,v] @ QL[ij])
+ 
+                    lHfjea.append(Hfjea)
+
+            #Hf{jm}ib{ij}e{mm} - part of Eqn 165, eqn 167
+            Sijmm = self.Local.Sijmm
+            Sijmj = self.Local.Sijmj
+            lHfibe = []
+            for ij in range(no*no):
+                i = ij // no
+                j = ij % no
+                ii = i*no + i
+                for m in range(no):
+                    mm = m*no + m
+                    im = i*no + m
+                    iim = ii*no + m
+                    ijm = ij*no + m
+                    imm = im*no + m
+                    jm = j*no + m
+
+                    Hfibe = contract('fbe, fF, bB, eE -> FBE', ERI[v,i,v,v], QL[jm], QL[ij], QL[mm])
+
+                    for n in range(no):
+                        imn = im * no + n
+                        jmn = jm * no + n
+
+                        tmp = t1[n] @ Sijmm[jmn].T
+                        Hfibe -= contract('f,be->fbe', tmp, QL[ij].T @ ERI[n,i,v,v] @ QL[mm])
+
+                    lHfibe.append(Hfibe)
+     
+            #Hf{jm}ie{mm}b{ij} - part of Eqn 165, eqn 170
+            Sijmm = self.Local.Sijmm
+            Sijmj = self.Local.Sijmj
+            lHfieb = []
+            for ij in range(no*no):
+                i = ij // no
+                j = ij % no
+                ii = i*no + i
+                for m in range(no):
+                    mm = m*no + m
+                    im = i*no + m
+                    iim = ii*no + m
+                    ijm = ij*no + m
+                    imm = im*no + m
+                    jm = j*no + m
+
+                    Hfieb = contract('feb, fF, eE, bB -> FEB', ERI[v,i,v,v], QL[jm], QL[mm], QL[ij])
+
+                    for n in range(no):
+                        imn = im * no + n
+                        jmn = jm * no + n
+
+                        tmp = t1[n] @ Sijmm[jmn].T
+                        Hfieb -= contract('f,eb->feb', tmp, QL[mm].T @ ERI[n,i,v,v] @ QL[ij])
+
+                    lHfieb.append(Hfieb)
+ 
+            #Hf{ij}ma{ij}e{mm} - part of Eqn 165, eqn 168
+            Sijmm = self.Local.Sijmm
+            Sijmj = self.Local.Sijmj
+            lHfmae = []
+            for ij in range(no*no):
+                i = ij // no
+                j = ij % no
+                ii = i*no + i
+                for m in range(no):
+                    mm = m*no + m
+                    im = i*no + m
+                    iim = ii*no + m
+                    ijm = ij*no + m
+                    imm = im*no + m
+                    jm = j*no + m                    
+                    
+                    Hfmae = contract('fae, fF, aA, eE -> FAE', ERI[v,m,v,v], QL[ij], QL[ij], QL[mm])
+
+                    for n in range(no):
+                        imn = im * no + n
+                        jmn = jm * no + n
+                        ijn = ij * no + n
+ 
+                        tmp = t1[n] @ Sijmm[ijn].T
+                        Hfmae -= contract('f,ae->fae', tmp, QL[ij].T @ ERI[n,m,v,v] @ QL[mm])
+
+                    lHfmae.append(Hfmae)
+
+            #Hf{ij}me{mm}a{ij} - part of Eqn 165, eqn 169
+            Sijmm = self.Local.Sijmm
+            Sijmj = self.Local.Sijmj
+            lHfmea = []
+            for ij in range(no*no):
+                i = ij // no
+                j = ij % no
+                ii = i*no + i
+                for m in range(no):
+                    mm = m*no + m
+                    im = i*no + m
+                    iim = ii*no + m
+                    ijm = ij*no + m
+                    imm = im*no + m
+                    jm = j*no + m
+   
+                    Hfmea = contract('fea, fF, eE, aA -> FEA', ERI[v,m,v,v], QL[ij], QL[mm], QL[ij])
+        
+                    for n in range(no):
+                        imn = im * no + n
+                        jmn = jm * no + n
+                        ijn = ij * no + n
+ 
+                        tmp = t1[n] @ Sijmm[ijn].T
+                        Hfmea -= contract('f,ea->fea', tmp, QL[mm].T @ ERI[n,m,v,v] @ QL[ij])
+
+                    lHfmea.append(Hfmea)
+        return lHvovv_ii, lHvovv_imn, lHvovv_imns, lHamef, lHamfe, lHvovv, lHfjea, lHfibe, lHfieb, lHfmae, lHfmea
         
     def build_Hvovv(self, o, v, ERI, t1):
         contract = self.contract
@@ -640,30 +856,133 @@ class cchbar(object):
 
             lHmine = []
             lHimne = []
-                        
+  
+            lHmine_mm = []
+            lHimne_mm = []
+
+            lHmnie = []
+            lHnmie = []
+                      
+            lHjmna = []
+            lHmjna = []
+        
+            lHjine = [] 
+       
             #Hmine and Himne - Eqn 98 and 99  
+            for i in range(no): 
+                ii = i*no + i
+                for j in range(no):
+                    ij = i*no + j
+                    for m in range(no): 
+                        for n in range(no):
+                            nn = n*no + n                       
+                       
+                            Hmine = ERIooov[ij][m,i,n].copy()
+                        
+                            tmp = contract('ef,eE ->Ef', ERI[i,m,v,v], QL[ij])
+                            tmp = contract('Ef, fF -> EF', tmp, QL[nn]) 
+                            Hmine = Hmine + contract('f,ef->e', t1[n], tmp) 
+
+                            lHmine.append(Hmine) 
+
+                            Himne = ERIooov[ij][i,m,n].copy()    
+   
+                            tmp = contract('ef, eE- >Ef', ERI[m,i,v,v], QL[ij]) 
+                            tmp = contract('Ef, fF -> EF', tmp, QL[nn]) 
+                            Himne = Himne + contract('f,ef->e', t1[n], tmp) 
+
+                            lHimne.append(Himne)       
+
+            #Hmine{mm} and Himne{mm} - Eqn 98 and 99 
+            for i in range(no):
+                ii = i*no + i
+                for m in range(no):
+                    mm = m*no + m
+                    for n in range(no):
+                        nn = n*no + n
+
+                        Hmine_mm = ERIooov[mm][m,i,n].copy()
+
+                        tmp = contract('ef,eE ->Ef', ERI[i,m,v,v], QL[mm])
+                        tmp = contract('Ef, fF -> EF', tmp, QL[nn])
+                        Hmine_mm = Hmine_mm + contract('f,ef->e', t1[n], tmp)
+
+                        lHmine_mm.append(Hmine_mm)
+
+                        Himne_mm = ERIooov[mm][i,m,n].copy()
+   
+                        tmp = contract('ef, eE- > Ef', ERI[m,i,v,v], QL[mm])
+                        tmp = contract('Ef, fF -> EF', tmp, QL[nn])
+                        Himne_mm = Himne_mm + contract('f,ef->e', t1[n], tmp)
+
+                        lHimne_mm.append(Himne_mm)  
+
+            #Hmnie and Hnmie - Eqn 158 and 159 
             for i in range(no): 
                 ii = i*no + i
                 for m in range(no): 
                     for n in range(no):
-                        nn = n*no + n                       
-                        
-                        Hmine = ERIooov[ii][m,i,n].copy()
-                        
-                        tmp = contract('ef,eE ->Ef', ERI[i,m,v,v], QL[ii])
-                        tmp = contract('Ef, fF -> EF', tmp, QL[nn]) 
-                        Hmine = Hmine + contract('f,ef->e', t1[n], tmp) 
+                        nn = n*no + n     
+                             
+                        Hmnie = ERIooov[nn][m,n,i].copy()
+                             
+                        tmp = contract('ef,eE ->Ef', ERI[n,m,v,v], QL[nn])
+                        tmp = contract('Ef, fF -> EF', tmp, QL[ii]) 
+                        Hmnie = Hmnie + contract('f,ef->e', t1[i], tmp) 
 
-                        lHmine.append(Hmine) 
+                        lHmnie.append(Hmnie) 
 
-                        Himne = ERIooov[ii][i,m,n].copy()    
+                        Hnmie = ERIooov[nn][n,m,i].copy()    
    
-                        tmp = contract('ef, eE- >Ef', ERI[m,i,v,v], QL[ii]) 
-                        tmp = contract('Ef, fF -> EF', tmp, QL[nn]) 
-                        Himne = Himne + contract('f,ef->e', t1[n], tmp) 
+                        tmp = contract('ef, eE- >Ef', ERI[m,n,v,v], QL[nn]) 
+                        tmp = contract('Ef, fF -> EF', tmp, QL[ii]) 
+                        Hnmie = Hnmie + contract('f,ef->e', t1[i], tmp) 
 
-                        lHimne.append(Himne)       
- 
+                        lHnmie.append(Hnmie)
+
+            #Hjmna{ij} and Hmjna{ij} - Eqn 171 and 172 
+            for i in range(no):
+                ii = i*no + i
+                for j in range(no):
+                    ij = i*no + j 
+                    for m in range(no):
+                        for n in range(no):
+                            nn = n*no + n    
+
+                            Hjmna = ERIooov[ij][j,m,n].copy()
+
+                            tmp = contract('af,aA ->Af', ERI[m,j,v,v], QL[ij])
+                            tmp = contract('Af, fF -> AF', tmp, QL[nn])
+                            Hjmna = Hjmna + contract('f,af->a', t1[n], tmp)
+
+                            lHjmna.append(Hjmna)
+
+                            Hmjna = ERIooov[ij][m,j,n].copy()   
+  
+                            tmp = contract('af, aA- >Af', ERI[j,m,v,v], QL[ij])
+                            tmp = contract('Af, fF -> AF', tmp, QL[nn])
+                            Hmjna = Hmjna + contract('f,af->a', t1[n], tmp)
+
+                            lHmjna.append(Hmjna) 
+
+            #Hjine{mm} - Eqn 173
+            for i in range(no):
+                ii = i*no + i
+                for j in range(no):
+                    ij = i*no + j
+                    for m in range(no):
+                        mm = m*no + m
+                        for n in range(no):
+                            nn = n*no + n
+
+                            Hjine = ERIooov[mm][j,i,n].copy()
+
+                            tmp = contract('af,aA ->Af', ERI[i,j,v,v], QL[mm])
+                            tmp = contract('Af, fF -> AF', tmp, QL[nn])
+                            Hjine = Hjine + contract('f,af->a', t1[n], tmp)
+
+                            lHjine.append(Hjine)
+
             #Hijov and Hjiov - Eqn 100 and 101
             for ij in range(no*no):
                 i = ij // no
@@ -676,7 +995,7 @@ class cchbar(object):
                 for m in range(no):
                     mm = m*no + m
            
-                    tmp = contract('eE, ef ->Ef', QL[ij], ERI[i,j,v,v]) 
+                    tmp = contract('eE, ef -> Ef', QL[ij], ERI[i,j,v,v]) 
                     tmp = contract('fF, Ef -> EF', QL[mm], tmp)
                     Hjiov[m] = Hjiov[m] + contract('f,ef->e',t1[m], tmp)
 
@@ -698,7 +1017,7 @@ class cchbar(object):
                 #tmp = contract('fF, nmEf -> nmEF', QL[ii], tmp)
                 #Hooov[:,:,i,:] = contract('f,nmef->mne',t1[i], tmp)         
                 #lHooov.append(Hooov) 
-        return lHjiov, lHijov, lHmine, lHimne   
+        return lHjiov, lHijov, lHmine, lHimne, lHmnie, lHnmie, lHjmna, lHmjna, lHjine, lHmine_mm, lHimne_mm   
         
     def build_Hooov(self, o, v, ERI, t1):
         contract = self.contract
@@ -809,9 +1128,11 @@ class cchbar(object):
                 #lHovvo.append(Hovvo)
         else:
             lHovvo_mi = []
+            lHovvo_im = []
             lHovvo_mj = []
             lHovvo_mm = []
-            
+            lHmvvj_mi = []
+ 
             #Hi v_mm v_ii o - Eqn 102 
             for i in range(no): 
                 ii = i*no + i 
@@ -903,6 +1224,130 @@ class cchbar(object):
                         Hovvo_mi = Hovvo_mi + tmp.T @ tmp1.T
                     lHovvo_mi.append(Hovvo_mi)
 
+            #Hm v_ij v_im j - Eqn 157
+            #Hm v_ij v_mi j - Eqn 158
+            Sijmj = self.Local.Sijmj
+            for ij in range(no*no):
+                i = ij // no
+                j = ij % no
+                ii = i*no + i 
+                jj =  j*no + j
+
+                for m in range(no):
+                    im = i*no + m
+                    mi = m*no + i
+
+                    #first term
+                    #Hovvo_im = contract('bB, eE, be -> BE', QL[ij], QL[im], ERI[m,v,v,j])
+                    Hovvo_im = contract('bB, be -> Be', QL[ij], ERI[m,v,v,j])
+                    Hmvvj_mi = contract('eE, Be -> BE', QL[mi], Hovvo_im)
+                    Hovvo_im = contract('eE, Be -> BE', QL[im], Hovvo_im)
+
+                    #second term 
+                    #tmp = contract('abc,aA,bB,cC->ABC',ERI[m,v,v,v], QL[ij], QL[im], QL[jj])
+                    tmp = contract('bef, bB ->Bef', ERI[m,v,v,v], QL[ij])
+                    tmp_mi = contract('Bef, eE -> BEf', tmp, QL[mi])
+                    tmp = contract('Bef, eE ->BEf', tmp, QL[im])
+                    tmp_mi = contract('BEf, fF-> BEF', tmp_mi, QL[jj])
+                    tmp = contract('BEf, fF-> BEF', tmp, QL[jj])
+                    Hovvo_im = Hovvo_im + contract('f,bef->be', t1[j], tmp)
+                    Hmvvj_mi = Hmvvj_mi + contract('f,bef->be', t1[j], tmp_mi)
+
+                    for n in range(no):
+                        mn = m*no + n
+                        nm = n*no + m
+                        nn = n*no + n
+                        imn = im*no + n
+                        ijn = ij*no + n 
+                        _in = i*no + n
+                        ni = n*no + i 
+                        jn = j*no +n 
+                        nj = n*no + j
+
+                        #third term 
+                        #Simnn <- Sijmm
+                        tmp = Sijmm[ijn] @ t1[n]
+                        tmp1 = contract ('e,eE->E', ERI[m,n,v,j], QL[im])
+                        tmp1_mi = contract ('e,eE->E', ERI[m,n,v,j], QL[mi])
+                        Hovvo_im = Hovvo_im - contract('b,e->be', tmp, tmp1)
+                        Hmvvj_mi = Hmvvj_mi - contract('b,e->be', tmp, tmp1_mi)
+
+                        #fourth term
+                        #Sijin <- Sijim
+                        tmp1 = t2[jn] @ Sijmj[ijn].T
+                        tmp2 = QL[im].T @ ERI[m,n,v,v]
+                        tmp2_mi = QL[mi].T @ ERI[m,n,v,v]
+                        tmp3 = tmp2 @ QL[jn]
+                        tmp3_mi = tmp2_mi @ QL[jn]
+                        Hovvo_im = Hovvo_im - tmp1.T @ tmp3.T
+                        Hmvvj_mi = Hmvvj_mi - tmp1.T @ tmp3_mi.T
+
+                        #fifth term
+                        tmp1 = tmp2 @ QL[jj]
+                        tmp1_mi = tmp2_mi @ QL[jj]
+                        Hovvo_im = Hovvo_im - contract('f,b,ef->be', t1[j], tmp, tmp1)
+                        Hmvvj_mi = Hmvvj_mi - contract('f,b,ef->be', t1[j], tmp, tmp1_mi) 
+
+                        #sixth term
+                        #Sminm <- Sijnj
+                        tmp = t2[nj] @ Sijmj[ijn].T
+                        tmp1 = QL[im].T @ L[m,n,v,v]
+                        tmp1_mi = QL[mi].T @ L[m,n,v,v]
+                        tmp1 = tmp1 @ QL[nj]
+                        tmp1_mi = tmp1_mi @ QL[nj]
+                        Hovvo_im = Hovvo_im + tmp.T @ tmp1.T
+                        Hmvvj_mi = Hmvvj_mi + tmp.T @ tmp1_mi.T 
+                    lHovvo_im.append(Hovvo_im)
+                    lHmvvj_mi.append(Hmvvj_mi)
+
+            #Hj v_mi v_ij o - Eqn 103
+            for ij in range(no*no):
+                i = ij // no
+                j = ij % no 
+                jj =  j*no + j
+
+                for m in range(no):
+                    mi = m*no + i
+                    mm = m*no + m
+
+                    #Hovvo_mi = contract('bB, eE, be -> BE', QL[mi], QL[ij], ERI[j,v,v,m])
+                    Hovvo_mi = contract('bB, be -> Be', QL[mi], ERI[j,v,v,m])
+                    Hovvo_mi = contract('eE, Be -> BE', QL[ij], Hovvo_mi)
+
+                    #tmp = contract('abc,aA,bB,cC->ABC',ERI[j,v,v,v], QL[mi], QL[ij], QL[mm])
+                    tmp = contract('abc, aA ->Abc', ERI[j,v,v,v], QL[mi])
+                    tmp = contract('Abc, bB ->ABc', tmp, QL[ij])
+                    tmp = contract('ABc, cC->ABC', tmp, QL[mm])
+                    Hovvo_mi = Hovvo_mi + contract('f,bef->be', t1[m], tmp) 
+
+                    for n in range(no):
+                        mn = m*no + n
+                        nm = n*no + m
+                        nn = n*no + n
+                        min = mi*no + n  
+
+                        #Sminn <- Sijmm
+                        tmp = Sijmm[min] @ t1[n]
+                        tmp1 = contract ('e,eE->E', ERI[j,n,v,m], QL[ij])
+                        Hovvo_mi = Hovvo_mi - contract('b,e->be', tmp, tmp1)
+
+                        #Smimn <- Sijim 
+                        tmp1 = t2[mn] @ Sijim[min].T
+                        tmp2 = QL[ij].T @ ERI[j,n,v,v]
+                        tmp3 = tmp2 @ QL[mn]
+                        Hovvo_mi = Hovvo_mi - tmp1.T @ tmp3.T
+
+                        tmp1 = tmp2 @ QL[mm]
+                        Hovvo_mi = Hovvo_mi - contract('f,b,ef->be', t1[m], tmp, tmp1)
+
+                        #Sminm <- Sijmi  
+                        tmp = t2[nm] @ Sijim[min].T
+                        tmp1 = QL[ij].T @ L[j,n,v,v]
+                        tmp1 = tmp1 @ QL[nm]
+                        Hovvo_mi = Hovvo_mi + tmp.T @ tmp1.T
+                    lHovvo_mi.append(Hovvo_mi)
+
+
             #Hi v_mj v_ij o - Eqn 104
             for ij in range(no*no):
                 i = ij // no
@@ -989,7 +1434,7 @@ class cchbar(object):
                         #tmp1 = tmp1 @ QL[nj] 
                         #Hovvo[m,:,:,j] = Hovvo[m,:,:,j] + tmp.T @ tmp1.T   
                 #lHovvo.append(Hovvo)            
-        return lHovvo_mi, lHovvo_mj, lHovvo_mm  
+        return lHovvo_mi, lHovvo_mj, lHovvo_mm, lHovvo_im, lHmvvj_mi  
 
     def build_Hovvo(self, o, v, ERI, L, t1, t2):
         contract = self.contract
@@ -1093,7 +1538,7 @@ class cchbar(object):
                         Hovov_mi = Hovov_mi - tmp.T @ tmp1.T
                     lHovov_mi.append(Hovov_mi)     
         else:  
-            lHovov = []
+            lHovov_im = []
             lHovov_mi = []
             lHovov_mj = []
             lHovov_mm = []
@@ -1209,6 +1654,52 @@ class cchbar(object):
                         tmp1 = tmp2 @ QL[mm]
                         Hovov_mi = Hovov_mi - contract('f,b,ef->be',t1[m], tmp, tmp1)
                     lHovov_mi.append(Hovov_mi)
+          
+            #Hmv{ij}jv{im} -   
+            Sijjn = self.Local.Sijjn
+            for ij in range(no*no):
+                i = ij // no
+                j = ij % no 
+                jj = j*no + j 
+                for m in range(no):
+                    mm = m*no + m
+                    im = i*no + m
+                    
+                    #first term
+                    #Hovov_im = contract('ae, aA, eE-> AE', ERI[m,v,j,v], QL[ij], QL[im])
+                    Hovov_im = contract('ae, aA-> Ae', ERI[m,v,j,v], QL[ij])
+                    Hovov_im = contract('Ae, eE-> AE', Hovov_im, QL[im])
+
+                    #second term 
+                    #tmp = contract('aef, aA, eE, fF-> AEF', ERI[v,m,v,v], QL[ij], QL[im], QL[jj])
+                    tmp = contract('aef, aA-> Aef', ERI[v,m,v,v], QL[ij])
+                    tmp = contract('Aef, eE-> AEf', tmp, QL[im])
+                    tmp = contract('AEf, fF-> AEF', tmp, QL[jj])
+                    Hovov_im = Hovov_im + contract('f,aef->ae', t1[j], tmp) 
+
+                    for n in range(no):
+                        nn = n*no + n
+                        jn = j*no + n
+                        ijn = ij*no + n
+
+                        #third term
+                        #Sijnn <- Sijmm
+                        tmp = Sijmm[ijn] @ t1[n]
+                        tmp1 = contract('e,eE->E', ERI[m,n,j,v], QL[im])
+                        Hovov_im = Hovov_im - contract('a,e->ae', tmp, tmp1)
+
+                        #fourth term
+                        #Smimn <- Sijim
+                        tmp1 = t2[jn] @ Sijjn[ijn].T
+                        tmp2 = QL[im].T @ ERI[n,m,v,v]
+                        tmp3 = tmp2 @ QL[jn]
+                        Hovov_im = Hovov_im - tmp1.T @ tmp3.T
+   
+                        #fifth term
+                        tmp1 = tmp2 @ QL[jj]
+                        Hovov_im = Hovov_im - contract('f,a,ef->ae',t1[j], tmp, tmp1)
+                    lHovov_im.append(Hovov_im)
+
 
             #Hovov_ij - not needed for lambda but may be needed for other eqns            
             #for ij in range(no*no):
@@ -1242,7 +1733,7 @@ class cchbar(object):
                         #Hovov[m,:,j,:] = Hovov[m,:,j,:] - contract('f,b,ef->be',t1[j], tmp, tmp1)
 
                 #lHovov.append(Hovov) 
-        return lHovov_mi, lHovov_mj, lHovov_mm 
+        return lHovov_mi, lHovov_mj, lHovov_mm, lHovov_im  
 
     def build_Hovov(self, o, v, ERI, t1, t2):
         contract = self.contract
@@ -1382,11 +1873,13 @@ class cchbar(object):
                     mi = m*no + i
                     mm = m*no + m               
 
+                    #first term
                     #Hvvvo_im = contract('abe, aA, bB, eE->ABE', ERI[v,v,v,m], QL[im], QL[im], QL[ii])   
                     Hvvvo_im = contract('abe, aA-> Abe', ERI[v,v,v,m], QL[im])
                     Hvvvo_im = contract('Abe, bB-> ABe', Hvvvo_im, QL[im])                    
                     Hvvvo_im = contract('ABe, eE-> ABE', Hvvvo_im, QL[ii])
 
+                    #third term
                     Hvvvo_im = Hvvvo_im + contract('f,abef->abe', t1[m], Hvvvv_im[im]) 
                     
                     for n in range(no): 
@@ -1395,11 +1888,13 @@ class cchbar(object):
                         mn = m*no + n
                         imn = im*no + n 
 
+                        #second term 
                         #Simnm <- Sijmj
                         tmp = t2[nm] @ Sijmj[imn].T
                         tmp1 = Sijmj[imn] @ tmp 
                         Hvvvo_im = Hvvvo_im - contract('e, ab->abe', Hov[ii][n], tmp1) 
 
+                        #sixth
                         #tmp1 = contract('bfe,bB,fF,eE->BFE', ERI[v,n,v,v], QL[im], QL[mn], QL[ii]) 
                         tmp1 = contract('bfe, bB-> Bfe', ERI[v,n,v,v], QL[im])
                         tmp1 = contract('Bfe, fF-> BFe', tmp1, QL[mn])
@@ -1408,12 +1903,14 @@ class cchbar(object):
                         tmp2 = t2[mn] @ Sijmj[imn].T 
                         Hvvvo_im = Hvvvo_im - contract('fa,bfe->abe', tmp2, tmp1) 
                         
+                        #seventh
                         #tmp1 = contract('aef,aA,eE,fF->AEF', ERI[v,n,v,v], QL[im], QL[ii], QL[mn])
                         tmp1 = contract('aef, aA-> Aef', ERI[v,n,v,v], QL[im])
                         tmp1 = contract('Aef, eE-> AEf', tmp1, QL[ii])
                         tmp1 = contract('AEf, fF-> AEF', tmp1, QL[mn])
                         Hvvvo_im = Hvvvo_im - contract('fb,aef->abe', tmp2, tmp1) 
                         
+                        #eight
                         #tmp1 = contract('aef,aA,eE,fF->AEF', L[v,n,v,v], QL[im], QL[ii], QL[nm]) 
                         tmp1 = contract('aef, aA-> Aef', L[v,n,v,v], QL[im])
                         tmp1 = contract('Aef, eE-> AEf', tmp1, QL[ii])
@@ -1421,9 +1918,11 @@ class cchbar(object):
                         Hvvvo_im = Hvvvo_im + contract('fb,aef->abe',tmp, tmp1)
         
                         #Simnn <- Sijmm 
+                        #ninth term
                         tmp = Sijmm[imn] @ t1[n] 
                         Hvvvo_im = Hvvvo_im - contract('b,ae->abe', tmp, ltmp_im[imn])
 
+                        #tenth term
                         Hvvvo_im = Hvvvo_im - contract('a,be->abe', tmp, ltmp1_im[imn]) 
 
                         for k in range(no): 
@@ -1433,12 +1932,14 @@ class cchbar(object):
                             imnk = imn*no + k
                             imk = im*no + k
 
+                            #fourth term
                             #Simkn <- Sijmn 
                             tmp = Sijmn[imnk] @ t2[kn]
                             tmp = tmp @ Sijmn[imnk].T 
                             tmp1 = QL[ii].T @ ERI[k,n,v,m] 
                             Hvvvo_im = Hvvvo_im + contract('ab,e->abe',tmp, tmp1) 
 
+                            #fifth term
                             #Simkk <- Sijmm 
                             #Simnn <- Sijmm  
                             tmp = Sijmm[imk] @ t1[k]
@@ -1446,6 +1947,134 @@ class cchbar(object):
                             Hvvvo_im = Hvvvo_im + contract('a,b,e->abe', tmp, tmp2, tmp1) 
        
                     lHvvvo_im.append( Hvvvo_im)
+
+
+            #terms for Hv_ij v_ij v_ii j - Eqn 151 and Eqn 152
+            ltmp_ij = []
+            ltmp1_ij = []
+            for i in range(no): 
+                ii = i*no + i 
+                for j in range(no):
+                    ij = i*no + j
+                    for m in range(no):
+                        jm = j*no + m
+                        mj = m*no + j
+                        
+                        #Eqn 151 first term
+                        #tmp = contract('ae,aA,eE->AE', ERI[v,m,v,j], QL[ij], QL[ii])
+                        tmp_ij = contract('ae, aA-> Ae', ERI[v,m,v,j], QL[ij])
+                        tmp_ij = contract('Ae, eE->AE', tmp_ij, QL[ii])
+                        
+                        #Eqn 152 first term 
+                        #tmp1 = contract('be,bB,eE->BE', ERI[v,m,j,v], QL[ij], QL[ii])
+                        tmp1_ij = contract('be, bB-> Be', ERI[v,m,j,v], QL[ij])
+                        tmp1_ij = contract('Be, eE-> BE', tmp1_ij, QL[ii])
+                            
+                        for n in range(no):
+                            jn = j *no + n
+                            nj = n*no + j
+                            ijn = ij*no + n
+                            
+                            #Eqn 151 second term
+                            tmp = t2[jn] @ Sijmj[ijn].T 
+                            #tmp1 = contract('fe,fF,eE->FE', ERI[n,k,v,v], QL[jn], QL[ii])
+                            tmp1 = contract('fe, fF-> Fe', ERI[m,n,v,v], QL[jn])
+                            tmp1 = contract('Fe, eE-> FE', tmp1, QL[ii])
+                            tmp_ij = tmp_ij - contract('fa,fe->ae', tmp, tmp1)  
+                            
+                            #Eqn 152 second term
+                            #tmp1 = contract('ef, eE-> Ef', ERI[n,k,v,v], QL[ii], QL[jn])
+                            tmp1 = contract('ef, eE-> Ef', ERI[m,n,v,v], QL[ii])
+                            tmp1 = contract('Ef, fF-> EF', tmp1, QL[jn])
+                            tmp1_ij = tmp1_ij - contract('fb,ef->be', tmp, tmp1)
+                            
+                            #Eqn 152 third term
+                            #Simkm <- Sijmj
+                            tmp = t2[nj] @ Sijmj[ijn].T
+                            #tmp1 = contract('ef,eE,fF->EF', L[n,k,v,v], QL[ii], QL[nj])
+                            tmp1 = contract('ef, eE-> Ef', L[m,n,v,v], QL[ii])
+                            tmp1 = contract('Ef, fF-> EF', tmp1, QL[nj])
+                            tmp1_ij = tmp1_ij + contract('fb,ef->be', tmp, tmp1)
+                        
+                        ltmp_ij.append(tmp_ij)
+                        ltmp1_ij.append(tmp1_ij)
+
+            #Hv_ij v_ij v_ii j - Eqn 108
+            lHvvvo_ij = []
+            for i in range(no): 
+                ii = i*no + i 
+                for j in range(no):
+                    ij = i*no + j
+                    ji = j*no + i
+                    jj = j*no + j               
+                    
+                    #first term
+                    #Hvvvo_ij = contract('abe, aA, bB, eE->ABE', ERI[v,v,v,j], QL[ij], QL[ij], QL[ii])
+                    Hvvvo_ij = contract('abe, aA-> Abe', ERI[v,v,v,j], QL[ij])
+                    Hvvvo_ij = contract('Abe, bB-> ABe', Hvvvo_ij, QL[ij])            
+                    Hvvvo_ij = contract('ABe, eE-> ABE', Hvvvo_ij, QL[ii])
+                    
+                    #third term 
+                    Hvvvo_ij = Hvvvo_ij + contract('f,abef->abe', t1[j], self.Hvvvv_ij[ij])
+                        
+                    for m in range(no):
+                        mj = m*no + j 
+                        mm = m*no + mm
+                        jm = j*no + m
+                        ijm = ij*no + m 
+                        
+                        #second term
+                        tmp = t2[mj] @ Sijmj[ijm].T
+                        tmp1 = Sijmj[ijm] @ tmp 
+                        Hvvvo_ij = Hvvvo_ij - contract('e, ab->abe', Hov[ii][m], tmp1)
+                        
+                        #sixth term
+                        #Sijmj same as Sijjm due to mj == jm
+                        #tmp1 = contract('bfe,bB,fF,eE->BFE', ERI[v,m,v,v], QL[ij], QL[jm], QL[ii])
+                        tmp1 = contract('bfe, bB-> Bfe', ERI[v,m,v,v], QL[ij])
+                        tmp1 = contract('Bfe, fF-> BFe', tmp1, QL[jm])
+                        tmp1 = contract('BFe, eE-> BFE', tmp1, QL[ii])
+                        tmp2 = t2[jm] @ Sijmj[ijm].T 
+                        Hvvvo_ij = Hvvvo_ij - contract('fa,bfe->abe', tmp2, tmp1)
+         
+                        #seventh                
+                        #tmp1 = contract('aef,aA,eE,fF->AEF', ERI[v,m,v,v], QL[ij], QL[ii], QL[jm])
+                        tmp1 = contract('aef, aA-> Aef', ERI[v,m,v,v], QL[ij])
+                        tmp1 = contract('Aef, eE-> AEf', tmp1, QL[ii])
+                        tmp1 = contract('AEf, fF-> AEF', tmp1, QL[jm])
+                        Hvvvo_ij = Hvvvo_ij - contract('fb,aef->abe', tmp2, tmp1)
+                        
+                        #eight
+                        #tmp1 = contract('aef,aA,eE,fF->AEF', L[v,m,v,v], QL[ij], QL[ii], QL[mj])
+                        tmp1 = contract('aef, aA-> Aef', L[v,m,v,v], QL[ij])
+                        tmp1 = contract('Aef, eE-> AEf', tmp1, QL[ii])
+                        tmp1 = contract('AEf, fF-> AEF', tmp1, QL[mj])
+                        Hvvvo_ij = Hvvvo_ij + contract('fb,aef->abe',tmp, tmp1)
+                        
+                        #ninth
+                        tmp = Sijmm[ijm] @ t1[m] 
+                        Hvvvo_ij = Hvvvo_ij - contract('b,ae->abe', tmp, ltmp_ij[ijm])
+                        
+                        #tenth
+                        Hvvvo_ij = Hvvvo_ij - contract('a,be->abe', tmp, ltmp1_ij[ijm])
+                            
+                        for n in range(no):
+                            nm = n*no + m  
+                            nn = n*no + n
+                            ijmn = ijm*no + n
+                            ijn = ij*no + n
+                            
+                            #fourth
+                            tmp = Sijmn[ijmn] @ t2[nm]
+                            tmp = tmp @ Sijmn[ijmn].T 
+                            tmp1 = QL[ii].T @ ERI[n,m,v,j] 
+                            Hvvvo_ij = Hvvvo_ij + contract('ab,e->abe',tmp, tmp1)
+     
+                            #fifth
+                            tmp = Sijmm[ijn] @ t1[n]
+                            tmp2 = Sijmm[ijm] @ t1[m]
+                            Hvvvo_ij = Hvvvo_ij + contract('a,b,e->abe', tmp, tmp2, tmp1)
+                    lHvvvo_ij.append(Hvvvo_ij)
 
             #Hvvvo_ij - not needed for lambda but may be needed for other eqns 
             #for i in range(no):
@@ -1544,7 +2173,7 @@ class cchbar(object):
                         #Hvvvo[:,:,:,i] = Hvvvo[:,:,:,i] + contract('a,b,e->abe',tmp,tmp1, ERIoovo[ij][m,n,:,i])
   
                 #lHvvvo.append( Hvvvo)
-        return lHvvvo_im
+        return lHvvvo_im, lHvvvo_ij
 
     def build_Hvvvo(self, o, v, ERI, L, Hov, Hvvvv, t1, t2):
         contract = self.contract
@@ -1635,10 +2264,6 @@ class cchbar(object):
                        #Hovoo[m,:,i,j] = Hovoo[m,:,i,j] + tmp.T @ Looov[nj][m,n,i]  
                #lHovoo.append(Hovoo)
         else:
-            #lHovoo = []
-            #ltmp_ij = []
-            #ltmp1_ij = []
-
             lHovoo_mn = []
 
             #Hov_mn oo - Eqn 111 
@@ -1727,99 +2352,103 @@ class cchbar(object):
             
                         lHovoo_mn.append( Hovoo_mn)
             
-            #Hovoo_ij - not needed for lambda but may be needed for other eqns            
-            #for i in range(no):
-                #ii = i*no + i 
-                #for j in range(no):
-                    #ij = i*no + j 
-                    #jj = j*no + j
-       
-                    #for m in range(no):
-                        
-                        #tmp_ij = contract('aA,bB,ab->AB', QL[ij], QL[jj], ERI[m,v,i,v])
-                        #tmp_ij = contract('aA, ab-> Ab', QL[ij], ERI[m,v,i,v])
-                        #tmp_ij = contract('bB, Ab-> AB', QL[jj], tmp_ij)
+            lHovoo_ij = []
+            #Hmv{ij}ij - Eqn 153            
+            for i in range(no):
+                ii = i*no + i 
+                for j in range(no):
+                    ij = i*no + j
+                    jj = j*no + j 
+                    for m in range(no):
 
-                        #tmp1_ij = contract('aA,bB,ab->AB', QL[ij], QL[ii], ERI[v,m,j,v])
-                        #tmp1_ij = contract('aA, ab-> Ab', QL[ij], ERI[v,m,j,v])
-                        #tmp1_ij = contract('bB, Ab->AB', QL[ii], tmp1_ij)
+                        #first term
+                        Hovoo_ij = contract('b, bB-> B', ERI[m,v,i,j], QL[ij])
 
-                        #for n in range(no):
-                            #_in = i*no + n
-                            #jn = j*no + n
-                            #nj = n*no + j
+                        #second term
+                        Hovoo_ij = Hovoo_ij + contract('c, cb-> b', Hov[ij][m], t2[ij])
 
-                            #Sijin = QL[ij].T @ QL[_in]
-                            #tmp = t2[_in] @ Sijin.T
+                        #fourth term 
+                        Hovoo_ij = Hovoo_ij + contract('cf, bcf-> b', t2[ij], ERIovvv[ij][m])
 
-                            #tmp1 = contract('ab, aA-> Ab', ERI[m,n,v,v], QL[_in])
-                            #tmp1 = contract('Ab, bB-> AB', tmp1, QL[jj])
-
-                            #tmp_ij = tmp_ij - contract('fa, fe-> ae', tmp, tmp1)
-
-                            #Sijjn = QL[ij].T @ QL[jn]
-                            #tmp = t2[jn] @ Sijjn.T
-                            #tmp1 = contract('ab, aA-> Ab', ERI[m,n,v,v], QL[ii])
-                            #tmp1 = contract('Ab, bB-> AB', tmp1, QL[jn])
-                            #tmp1_ij = tmp1_ij - contract('fb, ef-> be', tmp, tmp1)
-
-                            #Sijnj = QL[ij].T @ QL[nj]
-                            #tmp = t2[nj] @ Sijnj.T
-                            #tmp1 = contract('ab, aA-> Ab', L[m,n,v,v], QL[ii])
-                            #tmp1 = contract('Ab, bB-> AB', tmp1, QL[nj])
-                            #tmp1_ij = tmp1_ij + contract('fb, ef-> be', tmp, tmp1)
-
-                        #ltmp_ij.append(tmp_ij)
-                        #ltmp1_ij.append(tmp1_ij)       
-
-            #for ij in range(no*no):
-                #i = ij // no
-                #j = ij % no
-                #ii = i*no + i 
-                #jj = j*no + j
-
-                #Hovoo = ERIovoo[ij].copy()
+                        #fifth term 
+                        #tmp = contract('bcf,bB, cC,fF->BCF', ERI[m,v,v,v], QL[ij], QL[ii], QL[jj])
+                        tmp = contract('bef, bB-> Bef', ERI[m,v,v,v], QL[ij])
+                        tmp = contract('Bef, eE-> BEf', tmp, QL[ii])
+                        tmp = contract('BEf, fF-> BEF', tmp, QL[jj])
+                        Hovoo_ij = Hovoo_ij + contract('c, f, bcf-> b', t1[i], t1[j], tmp)
  
-                #for m in range(no):
-                    #ijm = ij*no + m
- 
-                    #Hovoo[m,:,i,j] = Hovoo[m,:,i,j] + Hov[ij][m] @ t2[ij]
+                        #ninth term - X term
+                        #tmp_ij = contract('bc,bB,cC->BC', ERI[m,v,i,v], QL[ij], QL[jj])
+                        tmp_ij = contract('bc, bB->Bc', ERI[m,v,i,v], QL[ij])
+                        tmp_ij = contract('Bc, cC-> BC', tmp_ij, QL[jj])
 
-                    #Hovoo[m,:,i,j] = Hovoo[m,:,i,j] + contract('ef, bef-> b', t2[ij], ERIovvv[ij][m])
- 
-                    #tmp = contract('abc, aA-> Abc', ERI[m,v,v,v], QL[ij])
-                    #tmp = contract('Abc, bB-> ABc', tmp, QL[ii])
-                    #tmp = contract('ABc, cC-> ABC', tmp, QL[jj])
-                    #Hovoo[m,:,i,j] = Hovoo[m,:,i,j] + contract('e, f, bef-> b', t1[i], t1[j], tmp)
-  
-                    #Hovoo[m,:,i,j] = Hovoo[m,:,i,j] + contract('e, be-> b', t1[j], ltmp_ij[ijm]) 
-  
-                    #Hovoo[m,:,i,j] = Hovoo[m,:,i,j] + contract('e, be-> b', t1[i], ltmp1_ij[ijm])
-                    
-                    #for n in range(no):
-                        #_in = i*no + n
-                        #jn = j*no + n
-                        #nj = n*no + j
-                        #nn = n*no + n
+                        for n in range(no):
+                            _in = i*no + n
+                            ijn = ij*no + n
 
-                        #Sijin = QL[ij].T @ QL[_in]
-                        #tmp = t2[_in] @ Sijin.T
-                        #Hovoo[m,:,i,j] = Hovoo[m,:,i,j] - tmp.T @ ERIooov[_in][n,m,j]
+                            tmp = t2[_in] @ Sijim[ijn].T
+                            #tmp1 = contract('fc,fF,cC->FC', ERI[m,n,v,v], QL[_in], QL[jj])
+                            tmp1 = contract('fc, fF-> Fc', ERI[m,n,v,v], QL[_in])
+                            tmp1 = contract('Fc, cC-> FC', tmp1, QL[jj])
+                            tmp_ij = tmp_ij - contract('fb, fc-> bc', tmp, tmp1)
 
-                        #Sijjn = QL[ij].T @ QL[jn]
-                        #tmp = t2[jn] @ Sijjn.T
-                        #Hovoo[m,:,i,j] = Hovoo[m,:,i,j] - tmp.T @ ERIooov[jn][m,n,i]
+                        #ninth term
+                        Hovoo_ij = Hovoo_ij + contract('c, bc-> b', t1[j], tmp_ij)
 
-                        #Sijnj = QL[ij].T @ QL[nj]
-                        #tmp = t2[nj] @ Sijnj.T
-                        #Hovoo[m,:,i,j] = Hovoo[m,:,i,j] + tmp.T @ Looov[nj][m,n,i]
-  
-                        #Sijnn = QL[ij].T @ QL[nn]
-                        #tmp = t1[n] @ Sijnn.T
-                        #Hovoo[m,:,i,j] = Hovoo[m,:,i,j] - t1[n] @ Sijnn.T * Hoooo[m,n,i,j]
+                        #tenth term - X term
+                        #tmp1_ij = contract('bc,bB,cC->BC', ERI[v,m,j,v], QL[ij], QL[ii])
+                        tmp_ij = contract('bc, bB-> Bc', ERI[v,m,j,v], QL[ij])
+                        tmp_ij = contract('Bc, cC-> BC', tmp_ij, QL[ii])
 
-                #lHovoo.append(Hovoo)      
-        return lHovoo_mn
+                        for n in range(no):
+                            jn = j*no + n
+                            nj = n*no + j
+                            ijn = ij*no + n 
+
+                            #Sijnj <- Sijmj
+                            tmp = t2[jn] @ Sijmj[ijn].T
+                            #tmp1 = contract('cf,cC,fF->CF', ERI[m,n,v,v], QL[ii], QL[jn])
+                            tmp1 = contract('cf, cC-> Cf', ERI[m,n,v,v], QL[ii])
+                            tmp1 = contract('Cf, fF-> CF', tmp1, QL[jn])
+                            tmp_ij = tmp_ij - contract('fb, cf-> bc', tmp, tmp1)
+                            
+                            #Sijnj <- Sijmj
+                            tmp = t2[nj] @ Sijmj[ijn].T
+                            tmp1 = contract('cf, cC-> Cf', L[m,n,v,v], QL[ii])
+                            tmp1 = contract('Cf, fF-> CF', tmp1, QL[nj])
+                            tmp_ij = tmp_ij + contract('fb, cf-> bc', tmp, tmp1)
+
+                        #tenth term
+                        Hovoo_ij = Hovoo_ij + contract('c, bc-> b', t1[i], tmp_ij)
+
+                        for n in range(no):
+                            nn = n*no + n
+                            _in = i*no + n
+                            jn = j*no + n
+                            nj = n*no + j
+                            ijn = ij*no + n
+
+                            #third term 
+                            #Smnkk <- Sijmm
+                            tmp = Sijmm[ijn] @ t1[n]
+                            Hovoo_ij = Hovoo_ij - (tmp * Hoooo[m,n,i,j])
+
+                            #sixth term
+                            #Sijin <- Sijim
+                            tmp = t2[_in] @ Sijim[ijn].T
+                            Hovoo_ij = Hovoo_ij - contract('cb, c-> b', tmp, ERIooov[_in][n,m,j])
+
+                            #seventh term
+                            #Sijjn <- Sijjm
+                            tmp = t2[jn] @ Sijmj[ijn].T
+                            Hovoo_ij = Hovoo_ij - contract('cb, c-> b', tmp, ERIooov[jn][m,n,i])
+
+                            #eigth term
+                            #Sijnj <- Sijmj
+                            tmp = t2[nj] @ Sijmj[ijn].T
+                            Hovoo_ij = Hovoo_ij + contract('cb, c-> b', tmp, Looov[nj][m,n,i]) 
+                        lHovoo_ij.append( Hovoo_ij)
+        return lHovoo_mn, lHovoo_ij
 
     def build_Hovoo(self, o, v, ERI, L, Hov, Hoooo, t1, t2):
         contract = self.contract

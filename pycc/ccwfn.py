@@ -88,13 +88,14 @@ class ccwfn(object):
 
         self.make_t3_density = kwargs.pop('make_t3_density', False)
 
-        valid_local_models = [None, 'PNO', 'PAO','PNO++']
+        valid_local_models = [None, 'PNO', 'PAO','CPNO++','PNO++']
         local = kwargs.pop('local', None)
         # TODO: case-protect this kwarg
         if local not in valid_local_models:
             raise Exception("%s is not an allowed local-CC model." % (local))
         self.local = local
         self.local_cutoff = kwargs.pop('local_cutoff', 1e-5)
+        self.ed_omega = kwargs.pop('omega', 0) 
 
         valid_local_MOs = ['PIPEK_MEZEY', 'BOYS']
         local_MOs = kwargs.pop('local_mos', 'PIPEK_MEZEY')
@@ -152,7 +153,7 @@ class ccwfn(object):
         self.H = Hamiltonian(self.ref, self.C, self.C, self.C, self.C)
 
         if local is not None:
-            self.Local = Local(local, self.C, self.nfzc, self.no, self.nv, self.H, self.local_cutoff,self.it2_opt)
+            self.Local = Local(local, self.C, self.nfzc, self.no, self.nv, self.H, self.local_cutoff,self.it2_opt, self.ed_omega)
             if filter is not True:
                 self.Local.trans_integrals(self.o, self.v)
                 self.Local.overlaps(self.Local.QL)
@@ -225,8 +226,8 @@ class ccwfn(object):
                 # Storing on CPU
                 self.H.ERI = torch.tensor(self.H.ERI, dtype=torch.complex64, device=self.device0)
                 self.H.L = torch.tensor(self.H.L, dtype=torch.complex64, device=self.device0)
-
-        print("CC object initialized in %.3f seconds." % (time.time() - time_init))
+                
+        print("CCWFN object initialized in %.3f seconds." % (time.time() - time_init))
 
 
     def solve_cc(self, e_conv=1e-7, r_conv=1e-7, maxiter=100, max_diis=8, start_diis=1):
@@ -312,7 +313,7 @@ class ccwfn(object):
             # check for convergence
             if isinstance(self.t1, torch.Tensor):
                 if ((torch.abs(ediff) < e_conv) and torch.abs(rms) < r_conv):
-                    print("\nCC has converged in %.3f seconds.\n" % (time.time() - ccsd_tstart))
+                    print("\nCCWFN converged in %.3f seconds.\n" % (time.time() - ccsd_tstart))
                     print("E(REF)  = %20.15f" % self.eref)
                     print("E(%s) = %20.15f" % (self.model, ecc))
                     print("E(TOT)  = %20.15f" % (ecc + self.eref))
@@ -320,7 +321,7 @@ class ccwfn(object):
                     return ecc
             else:
                 if ((abs(ediff) < e_conv) and abs(rms) < r_conv):
-                    print("\nCC has converged in %.3f seconds.\n" % (time.time() - ccsd_tstart))
+                    print("\nCCWFN converged in %.3f seconds.\n" % (time.time() - ccsd_tstart))
                     print("E(REF)  = %20.15f" % self.eref)
                     if (self.model == 'CCSD(T)'):
                         print("E(CCSD) = %20.15f" % ecc)

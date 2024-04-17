@@ -265,9 +265,9 @@ class cclambda(object):
           
                         r_l1 = r_l1 + contract('ef,eaf->a', Gvv[mn], Hvovvs[imn])
 
-                        r_l1 = r_l1 - 2.0 * Goo[m,n] * Hmine[imn]
+                        r_l1 = r_l1 - 2.0 * Goo[m,n] * Hmine[iimn]
                         
-                        r_l1 = r_l1 + Goo[m,n] * Himne[imn]
+                        r_l1 = r_l1 + Goo[m,n] * Himne[iimn]
 
                 lr_l1.append(r_l1)
                  

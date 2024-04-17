@@ -152,6 +152,8 @@ class ccresponse(object):
             for ij in range(self.ccwfn.no*self.ccwfn.no):
                 tmp = self.ccwfn.Local.Q[ij].T @ self.hbar.Hvv @ self.ccwfn.Local.Q[ij]
                 self.eps_vir.append(np.diag(self.ccwfn.Local.L[ij].T @ tmp @ self.ccwfn.Local.L[ij])) 
+                self.Dia = eps_occ.reshape(-1,1) #- eps_vir
+                self.Dijab = eps_occ.reshape(-1,1,1,1) + eps_occ.reshape(-1,1,1) #- eps_vir.reshape(-1,1) - eps_vir
 
     def pertcheck(self, omega, e_conv=1e-13, r_conv=1e-13, maxiter=200, max_diis=8, start_diis=1):
         """
@@ -1775,6 +1777,7 @@ class ccresponse(object):
         tmp  = contract('ia,nkba->nkbi', X1_B, Y2_C)
         tmp  = contract('jkbc,nkbi->jnci', X2_A, tmp)
         self.Bcon3 += contract('jnci,jinc->', tmp, hbar.Hooov)
+
         self.hyper += self.Bcon1 + self.Bcon2 + self.Bcon3
 
         return self.hyper
@@ -2031,7 +2034,7 @@ class ccresponse(object):
         # initial guess, comment out omega
         X1 = pertbar.Avo.T/(Dia) # + omega)
         X2 = pertbar.Avvoo/(Dijab) #  + omega)
-
+ 
         pseudo = self.pseudoresponse(pertbar, X1, X2)
         print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}")
 
@@ -2043,9 +2046,6 @@ class ccresponse(object):
 
         for niter in range(1, maxiter+1):
             pseudo_last = pseudo
-
-            X1 = self.X1
-            X2 = self.X2
 
             r1 = self.r_X1(pertbar, omega)
             r2 = self.r_X2(pertbar, omega)
@@ -2066,6 +2066,9 @@ class ccresponse(object):
                 rms = contract('ia,ia->', np.conj(r1/(Dia+omega)), r1/(Dia+omega))
                 rms += contract('ijab,ijab->', np.conj(r2/(Dijab+omega)), r2/(Dijab+omega))
                 rms = np.sqrt(rms)
+
+            rms = np.sqrt(rms)
+            #end loop
 
             pseudo = self.pseudoresponse(pertbar, self.X1, self.X2)
             pseudodiff = np.abs(pseudo - pseudo_last)
@@ -2171,7 +2174,6 @@ class ccresponse(object):
             #diis.add_error_vector(self.X1, self.X2)
             #if niter >= start_diis:
             #    self.X1, self.X2 = diis.extrapolate(self.X1, self.X2)
-
     def solve_left(self, pertbar, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1):
         '''
         Notes
@@ -2562,8 +2564,7 @@ class ccresponse(object):
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
-        Y1 = self.Y1
-        
+        Y1 = self.Y1        
         Y2 = self.Y2
         l1 = self.cclambda.l1
         l2 = self.cclambda.l2
@@ -2580,7 +2581,7 @@ class ccresponse(object):
         #r_Y1 -= contract('im,ma->ia', pertbar.Aoo, l1)
         #r_Y1 += contract('ie,ea->ia', l1, pertbar.Avv)
         ## <O|L2(0)|A_bar|phi^a_i>
-        ##r_Y1 += contract('imfe,feam->ia', l2, pertbar.Avvvo)
+        #r_Y1 += contract('imfe,feam->ia', l2, pertbar.Avvvo)
    
         ##can combine the next two to swapaxes type contraction
         #r_Y1 -= 0.5 * contract('ienm,mnea->ia', pertbar.Aovoo, l2)
@@ -2713,6 +2714,48 @@ class ccresponse(object):
         
         return r_Y1 
 
+        #for i in range(self.ccwfn.no):
+            #ii = i* self.ccwfn.no + i 
+            #QL = self.ccwfn.Local.Q[ii] @ self.ccwfn.Local.L[ii]
+            #print("R-Y1", i, r_Y1[i] @ QL) 
+        return r_Y1
+
+    def in_lY1(self, lpertbar, X1, X2):
+        contract = self.contract
+        no = self.ccwfn.no
+
+        l1 = self.cclambda.l1
+        l2 = self.cclambda.l2
+        cclambda = self.cclambda
+        t2 = self.ccwfn.t2
+        hbar = self.hbar
+        L = self.H.L
+
+        # Inhomogenous terms appearing in Y1 equations
+        #seems like these imhomogenous terms are computing at the beginning and not involve in the iteration itself
+        #may require moving to a sperate function
+        
+        in_Y1 = []
+        for i in range(no): 
+            ii = i * no + i 
+
+            # <O|A_bar|phi^a_i> good
+            r_Y1 = 2.0 * lpertbar.Aov[ii][i].copy()
+            #print("r_Y1", i, r_Y1)
+            in_Y1.append(r_Y1)
+ 
+        return in_Y1
+
+    def lr_Y1(self, lpertbar, omega):
+        contract = self.contract 
+        o = self.ccwfn.o
+        v = self.ccwfn.v
+      
+        #imhomogenous terms
+        r_Y1 = self.im_Y1.copy()
+        
+        return r_Y1 
+
     def r_Y1(self, pertbar, omega):
         contract = self.contract
         o = self.ccwfn.o
@@ -2727,6 +2770,8 @@ class ccresponse(object):
 
         #imhomogenous terms
         r_Y1 = self.im_Y1.copy()
+
+        #homogenous terms appearing in Y1 equations
         #r_Y1 += omega * Y1
         #r_Y1 += contract('ie,ea->ia', Y1, hbar.Hvv)
         #r_Y1 -= contract('im,ma->ia', hbar.Hoo, Y1)
@@ -2749,8 +2794,6 @@ class ccresponse(object):
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
-        #X1 = self.X1
-        #X2 = self.X2
         Y1 = self.Y1
         Y2 = self.Y2
         l1 = self.cclambda.l1
@@ -2781,7 +2824,7 @@ class ccresponse(object):
         tmp   = 2.0 *contract('me,jb->mejb', X1, l1)
         r_Y2 += contract('imae,mejb->ijab', L[o,o,v,v], tmp)
 
-        # <O|L2(0)|[Hbar(0), X1]|phi^ab_ij> 
+        ## <O|L2(0)|[Hbar(0), X1]|phi^ab_ij> 
         tmp   = contract('me,ma->ea', X1, hbar.Hov)
         r_Y2 -= contract('ijeb,ea->ijab', l2, tmp)
         tmp   = contract('me,ie->mi', X1, hbar.Hov)
@@ -2798,7 +2841,7 @@ class ccresponse(object):
         tmp  -= contract('me,fmea->fa', X1, hbar.Hvovv)
         r_Y2 += contract('ijfb,fa->ijab', l2, tmp)
 
-        #swapaxes contraction
+        ##swapaxes contraction
         tmp   = 2.0 * contract('me,fiea->mfia', X1, hbar.Hvovv)
         tmp  -= contract('me,fiae->mfia', X1, hbar.Hvovv)
         r_Y2 += contract('mfia,jmbf->ijab', tmp, l2)
@@ -2810,17 +2853,17 @@ class ccresponse(object):
         tmp   = contract('me,nmba->enba', X1, l2)
         r_Y2 += contract('jine,enba->ijab', hbar.Hooov, tmp)
 
-        #swapaxes
+        ##swapaxes
         tmp   = 2.0 * contract('me,mina->eina', X1, hbar.Hooov)
         tmp  -= contract('me,imna->eina', X1, hbar.Hooov)
         r_Y2 -= contract('eina,njeb->ijab', tmp, l2)
 
-        #swapaxes
+        ##swapaxes
         tmp   = 2.0 * contract('me,imne->in', X1, hbar.Hooov)
         tmp  -= contract('me,mine->in', X1, hbar.Hooov)
         r_Y2 -= contract('in,jnba->ijab', tmp, l2)
 
-        # <O|L2(0)|[Hbar(0), X2]|phi^ab_ij>
+        ## <O|L2(0)|[Hbar(0), X2]|phi^ab_ij>
         tmp   = 0.5 * contract('ijef,mnef->ijmn', l2, X2)
         r_Y2 += contract('ijmn,mnab->ijab', tmp, ERI[o,o,v,v])
         tmp   = 0.5 * contract('ijfe,mnef->ijmn', ERI[o,o,v,v], X2)
@@ -2832,10 +2875,9 @@ class ccresponse(object):
         tmp   = contract('mjfb,mnef->jbne', l2, X2)
         r_Y2 -= contract('jbne,inae->ijab', tmp, L[o,o,v,v])
 
-        #temp intermediate?
+        ##temp intermediate?
         r_Y2 -= contract('in,jnba->ijab', cclambda.build_Goo(L[o,o,v,v], X2), l2)
         #r_Y2 += contract('ijfb,af->ijab', l2, cclambda.build_Gvv(X2, L[o,o,v,v]))
-
         #these two terms commented out in local
         #r_Y2 += contract('ijae,be->ijab', L[o,o,v,v], cclambda.build_Gvv(X2, l2))
         #r_Y2 -= contract('imab,jm->ijab', L[o,o,v,v], cclambda.build_Goo(l2, X2))

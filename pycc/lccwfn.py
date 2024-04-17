@@ -1,5 +1,5 @@
-import time
-#from timer import Timer
+#import time
+from time import process_time
 import numpy as np
 from opt_einsum import contract
 
@@ -59,7 +59,7 @@ class lccwfn(object):
         self.QL = self.Local.QL
         self.dim = self.Local.dim
         self.eps = self.Local.eps
-
+	
         t1 = []
         t2 = []
 
@@ -94,24 +94,25 @@ class lccwfn(object):
         elcc: float
             lCC correlation energy
         """
-        lcc_tstart = time.time()
+        lcc_tstart = process_time()
 
         #initialize variables for timing each function
-        #self.fae_t = Timer("Fae")
-        #self.fme_t = Timer("Fme")
-        #self.fmi_t = Timer("Fmi")
-        #self.wmnij_t = Timer("Wmnij")
-        #self.zmbij_t = Timer("Zmbij")
-        #self.wmbej_t = Timer("Wmbej")
-        #self.wmbje_t = Timer("Wmbje")
-        #self.tau_t = Timer("tau")
-        #self.r1_t = Timer("r1")
-        #self.r2_t = Timer("r2")
-        #self.energy_t = Timer("energy")
-
+        self.fae_t = 0
+        self.fme_t = 0
+        self.fmi_t = 0
+        self.wmnij_t = 0
+        self.zmbij_t = 0
+        self.wmbej_t = 0
+        self.wmbje_t = 0
+        self.tau_t = 0
+        self.r1_t = 0
+        self.r2_t = 0
+       	self.energy_t = 0
+	
         #ldiis = helper_ldiis(self.t1, self.t2, max_diis)
 
         elcc = self.lcc_energy(self.Local.Fov,self.Local.Loovv,self.t1, self.t2)
+
         print("CC Iter %3d: lCC Ecorr = %.15f dE = % .5E MP2" % (0,elcc,-elcc))
 
         for niter in range(1, maxiter+1):
@@ -125,11 +126,10 @@ class lccwfn(object):
             rms_t2 = 0
 
             for i in range(self.no):
+
                 ii = i*self.no + i
 
-                #need to change to reshape
-                for a in range(self.Local.dim[ii]):
-                    self.t1[i][a] += r1[i][a]/(self.H.F[i,i] - self.Local.eps[ii][a])
+                self.t1[i] -= r1[i]/(self.Local.eps[ii].reshape(-1,) - self.H.F[i,i])
 
                 rms_t1 += contract('Z,Z->',r1[i],r1[i])
 
@@ -141,21 +141,32 @@ class lccwfn(object):
 
                     rms_t2 += contract('ZY,ZY->',r2[ij],r2[ij])
 
-            rms = np.sqrt(rms_t2)
+            rms = np.sqrt(rms_t1 + rms_t2)
             elcc = self.lcc_energy(self.Local.Fov,self.Local.Loovv,self.t1, self.t2)
             ediff = elcc - elcc_last
             print("lCC Iter %3d: lCC Ecorr = %.15f  dE = % .5E  rms = % .5E" % (niter, elcc, ediff, rms))
 
             # check for convergence
             if ((abs(ediff) < e_conv) and rms < r_conv):
-                print("\nlCC has converged in %.3f seconds.\n" % (time.time() - lcc_tstart))
+                print("\nlCC has converged in %.3f seconds.\n" % (process_time() - lcc_tstart))
                 print("E(REF)  = %20.15f" % self.eref)
                 print("E(%s) = %20.15f" % (self.local + "-" + self.model, elcc))
                 print("E(TOT)  = %20.15f" % (elcc + self.eref))
                 self.elcc = elcc
-                #print(Timer.timers)
+                print('Time table for intermediates')
+                print("Fae = %6.6f" % self.fae_t)
+                print("Fme = %6.6f" % self.fme_t)
+                print("Fmi = %6.6f" % self.fmi_t)
+                print("Wmnij = %6.6f" % self.wmnij_t)
+                print("Zmbij = %6.6f" % self.zmbij_t)
+                print("Wmbej = %6.6f" % self.wmbej_t)
+                print("Wmbje = %6.6f" % self.wmbje_t)
+                print("Tau_t = %6.6f" % self.tau_t)
+                print("r1_t = %6.6f" % self.r1_t)
+                print("r2_t = %6.6f" % self.r2_t)
+                print("Energy_t = %6.6f" % self.energy_t)
                 return elcc
-
+      
             #ldiis.add_error_vector(self.t1,self.t2)
             #if niter >= start_diis:
                 #self.t1, self.t2 = ldiis.extrapolate(self.t1, self.t2)
@@ -197,13 +208,13 @@ class lccwfn(object):
         self.Local.Sijmj, self.Local.Sijnn, self.Local.Sijmn, t1, t2, Fae ,Fmi, Fme, Wmnij, Zmbij, Wmbej, Wmbje, Wmbie)
 
         return r1, r2   
-
+    
     def build_Fae(self, Fae_ij, L, Fvv, Fov, Sijmm, Sijmn, t1, t2):
-        #self.fae_t.start()
+        fae_start = process_time()
         o = self.o
         v = self.v
         QL = self.QL
-
+        
         if self.model == 'CCD':
             for ij in range(self.no*self.no):
                 i = ij // self.no
@@ -255,11 +266,12 @@ class lccwfn(object):
                         Fae -= 0.5 *contract('a,F,eF->ae', tmp, t1[n], tmp4)
 
                 Fae_ij.append(Fae)
-        #self.fae_t.stop()
+        fae_end = process_time()
+        self.fae_t += fae_end - fae_start
         return Fae_ij
 
     def build_Fmi(self, o, F, L, Fov, Looov, Loovv, t1, t2):
-        #self.fmi_t.start()
+        fmi_start = process_time()
         v = self.v
         QL = self.QL
 
@@ -286,11 +298,12 @@ class lccwfn(object):
                    tmp = contract('mAb,bB->mAB', tmp, QL[nn])
                    Fmi[:,j] += 0.5 * contract('E,F,mEF->m',t1[j], t1[n], tmp)
 
-        #self.fmi_t.stop()
+        fmi_end = process_time()
+        self.fmi_t += fmi_end - fmi_start
         return Fmi
 
     def build_Fme(self, Fme_ij, L, Fov, t1):
-        #self.fme_t.start()
+        fme_start = process_time()
         QL = self.QL
         v = self.v
 
@@ -311,11 +324,12 @@ class lccwfn(object):
 
                 Fme_ij.append(Fme)
 
-        #self.fme_t.stop()
+        fme_end = process_time()
+        self.fme_t += fme_end - fme_start
         return Fme_ij
 
     def build_Wmnij(self, o, ERI, ERIooov, ERIoovo, ERIoovv, t1, t2):
-        #self.wmnij_t.start()
+        wmnij_start = process_time()
         v = self.v
         QL = self.Local.QL
 
@@ -342,11 +356,12 @@ class lccwfn(object):
                     tmp = contract('bB,mnAb->mnAB', QL[jj], tmp)
                     Wmnij[:,:,i,j] += contract('e,f,mnef->mn', t1[i], t1[j], tmp)
 
-        #self.wmnij_t.stop()
+        wmnij_end = process_time()
+        self.wmnij_t += wmnij_end - wmnij_start
         return Wmnij
 
     def build_Zmbij(self, Zmbij_ij, ERI, ERIovvv, t1, t2):
-        #self.zmbij_t.start()
+        zmbij_start = process_time()
         o = self.o
         v = self.v
         QL = self.QL
@@ -371,11 +386,12 @@ class lccwfn(object):
 
                 Zmbij_ij.append(Zmbij)
 
-        #self.zmbij_t.stop()
+        zmbij_end = process_time()
+        self.zmbij_t += zmbij_end - zmbij_start
         return Zmbij_ij
 
     def build_Wmbej(self, Wmbej_ijim, ERI, L, ERIoovo, Sijnn, Sijnj, Sijjn, t1, t2):
-        #self.wmbej_t.start()
+        wmbej_start = process_time()
         v = self.v
         o = self.o
         QL = self.QL
@@ -414,6 +430,7 @@ class lccwfn(object):
                 i = ij // self.no
                 j = ij % self.no
                 jj = j*self.no + j
+
                 for m in range(self.no):
                     im = i*self.no + m
 
@@ -450,11 +467,12 @@ class lccwfn(object):
                         Wmbej += 0.5 * tmp5.T @ tmp6.T
 
                     Wmbej_ijim.append(Wmbej)
-        #self.wmbej_t.stop()
+        wmbej_end = process_time()
+        self.wmbej_t += wmbej_end - wmbej_start
         return Wmbej_ijim
 
     def build_Wmbje(self, Wmbje_ijim, Wmbie_ijmj, ERI, ERIooov, Sijnn, Sijin, Sijjn, t1, t2):
-        #self.wmbje_t.start()
+        wmbje_start = process_time()
         o = self.o
         v = self.v
         QL = self.QL
@@ -553,11 +571,12 @@ class lccwfn(object):
 
                     Wmbje_ijim.append(Wmbje)
                     Wmbie_ijmj.append(Wmbie)
-        #self.wmbje_t.stop()
+        wmbje_end = process_time()
+        self.wmbje_t += wmbje_end - wmbje_start
         return Wmbje_ijim, Wmbie_ijmj
 
     def r_T1(self, r1_ii, Fov , ERI, L, Loovo, Sijmm, Sijim, Sijmn, t1, t2, Fae, Fmi, Fme):
-        #self.r1_t.start()
+        r1_start = process_time()
         v = self.v
         QL = self.QL
 
@@ -601,18 +620,19 @@ class lccwfn(object):
                 for mn in range(self.no*self.no):
                     m = mn // self.no
                     n = mn % self.no
-                    imn = i*(self.no**2) + mn
                     iimn =ii*(self.no**2) + mn 
              
                     tmp4 = Sijmn[iimn] @ t2[mn]
                     r1 -= contract('aE,E->a',tmp4,Loovo[mn][n,m,:,i])
 
                 r1_ii.append(r1)
-        #self.r1_t.stop()
+        
+        r1_end = process_time()
+        self.r1_t += r1_end - r1_start	
         return r1_ii
 
-    def r_T2(self,r2_ij, ERI, ERIoovv, ERIvvvv, ERIovoo, Sijmm, Sijim, Sijmj, Sijnn, Sijmn, t1, t2, Fae ,Fmi, Fme, Wmnij, Zmbij, Wmbej, Wmbje, Wmbie):
-        #self.r2_t.start()
+    def r_T2(self,r2_ij, ERI, ERIoovv, ERIvvvv, ERIovoo, Sijmm, Sijim, Sijmj, Sijnn, Sijmn, t1, t2, Fae,Fmi, Fme, Wmnij, Zmbij, Wmbej, Wmbje, Wmbie):
+        r2_start = process_time()
         v = self.v
         QL = self.QL
         dim = self.dim
@@ -737,7 +757,7 @@ class lccwfn(object):
                         r2 += 0.5 * contract('a,b->ab',tmp2_0, tmp13) * Wmnij[m,n,i,j]
 
                 nr2.append(r2) 
-
+    
         for i in range(self.no):
             for j in range(self.no):
                 ij = i*self.no + j
@@ -745,17 +765,18 @@ class lccwfn(object):
 
                 r2_ij.append(nr2[ij].copy() + nr2[ji].copy().transpose())
 
-        #self.r2_t.stop()
+        r2_end = process_time()
+        self.r2_t += r2_end - r2_start
         return r2_ij
 
     def lcc_energy(self, Fov, Loovv, t1, t2):
-        #self.energy_t.start()
+        energy_start = process_time()
         QL = self.QL
         v = self.v
         ecc_ii = 0
         ecc_ij = 0
         ecc = 0
-
+        
         if self.model == 'CCD':
             for i in range(self.no):
                 for j in range(self.no):
@@ -780,6 +801,7 @@ class lccwfn(object):
                     tmp2 = tmp2 @ QL[jj]
                     ecc_ij += contract('a,b,ab->',t1[i], t1[j], tmp2)
                     ecc += ecc_ij
-        #self.energy_t.stop()
+        energy_end = process_time()
+        self.energy_t += energy_end - energy_start
         return ecc
 

@@ -13,6 +13,7 @@ import pycc
 #from cclambda import cclambda
 #from ccdensity import ccdensity
 #from ccresponse import ccresponse
+
 import sys
 #sys.path.append("/Users/jattakumi/pycc/pycc/")
 sys.path.append("/Users/josemarcmadriaga/pycc_josh/pycc/pycc")
@@ -97,6 +98,9 @@ ldensity = pycc.ccdensity(lcc, lcclambda)
 
 lresp = pycc.ccresponse(ldensity)
 
+X_2[string] = resp.solve_right(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
+Y_2[string] = resp.solve_left(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
+
 omega1 = 0.0656
 
 #resp.linresp(omega1)
@@ -118,4 +122,5 @@ A = lresp.lpertbar[string]
 print("solving for X") 
 X_2[string] = lresp.local_solve_right(A, omega1, hbar_sim, e_conv=1e-09, r_conv=1e-09, maxiter = 20) 
 print("solving for Y") 
+X_2[string] = lresp.local_solve_right(A, omega1, hbar_sim, e_conv=1e-09, r_conv=1e-09, maxiter = 20) 
 Y_2[string] = lresp.local_solve_left(A, omega1, e_conv= 1e-09, r_conv=1e-09, maxiter =20)

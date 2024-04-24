@@ -43,29 +43,31 @@ cc_sim = pycc.ccwfn(rhf_wfn, local = 'PNO', local_mos = 'BOYS', local_cutoff = 1
 ecc = cc_sim.solve_cc(e_conv, r_conv)
 hbar_sim = pycc.cchbar(cc_sim)
 
-#Q = cc_sim.Local.Q
-#L = cc_sim.Local.L
-#ERI = cc_sim.H.ERI
-#t1 = cc_sim.t1
-#v = cc_sim.v
-#for i in range(cc_sim.no):
-#    ii = i*cc_sim.no + i 
-#    QL_ii = Q[ii] @ L[ii]
-#    for j in range(cc_sim.no):
-#        ij = i*cc_sim.no + j
-#        #jj = j*cc_sim.no + j 
-#        QL_ij = Q[ij] @ L[ij]
-#        #QL_jj = Q[jj] @ L[jj]
-#        for m in range(cc_sim.no):
-#            mm = m*cc_sim.no + m
-#            im = i*cc_sim.no + m
-#            ijm = ij*cc_sim.no + m 
-#            QL_mm = Q[mm] @ L[mm]
-#            QL_im = Q[im] @ L[im]
-#            print("t", ijm, t1[i] @ QL_im) 
-#            print("ER", ijm, QL_mm.T @ ERI[i,j,v,v] @ QL_ij) 
-#            print("Hvovv", ijm, contract('fea, fF, eE, aA-> FEA', hbar_sim.Hvovv[:,j,:,:], QL_im, QL_mm, QL_ij))
-#        #print("Hvvvo", ij, contract('abe, aA, bB, eE-> ABE', hbar_sim.Hvvvo[:,:,:,j], QL_ij, QL_ij, QL_ii))  
+# Q = cc_sim.Local.Q
+# L = cc_sim.Local.L
+# ERI = cc_sim.H.ERI
+# t1 = cc_sim.t1
+# v = cc_sim.v
+# for i in range(cc_sim.no):
+#     ii = i*cc_sim.no + i
+#     QL_ii = Q[ii] @ L[ii]
+#     for j in range(cc_sim.no):
+#         ij = i*cc_sim.no + j
+#         #jj = j*cc_sim.no + j
+#         QL_ij = Q[ij] @ L[ij]
+#         #QL_jj = Q[jj] @ L[jj]
+#         for m in range(cc_sim.no):
+#             mm = m*cc_sim.no + m
+#             im = i*cc_sim.no + m
+#             ijm = ij*cc_sim.no + m
+#             QL_mm = Q[mm] @ L[mm]
+#             QL_im = Q[im] @ L[im]
+#             #print("t", ijm, t1[i] @ QL_im)
+#             #print("ER", ijm, QL_mm.T @ ERI[i,j,v,v] @ QL_ij)
+#             # print("Hovvo", im, contract('be, bB, eE -> BE', hbar_sim.Hovvo[m,:,:,i], QL_ii, QL_mm))
+#             # print("Hovov", im, contract('be, bB, eE -> BE', hbar_sim.Hovov[m, :, i, :], QL_ii, QL_mm))
+#             print("Hvovv", im, contract('aef, aA, eE, fF -> AEF', hbar_sim.Hvovv[:, m, :, :], QL_ii, QL_im, QL_im)[0])
+#         #print("Hvvvo", ij, contract('abe, aA, bB, eE-> ABE', hbar_sim.Hvvvo[:,:,:,j], QL_ij, QL_ij, QL_ii))
 
 cclambda_sim = pycc.cclambda(cc_sim, hbar_sim)
 lecc = cclambda_sim.solve_lambda(e_conv, r_conv)
@@ -85,7 +87,7 @@ A = resp.pertbar[string]
 
 print("solving for X")
 X_2[string] = resp.solve_right(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
-print("solving for Y") 
+print("solving for Y")
 Y_2[string] = resp.solve_left(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
 
 #local
@@ -97,30 +99,8 @@ llecc = lcclambda.solve_llambda(e_conv, r_conv)
 ldensity = pycc.ccdensity(lcc, lcclambda)
 
 lresp = pycc.ccresponse(ldensity)
-
-X_2[string] = resp.solve_right(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
-Y_2[string] = resp.solve_left(A, omega1, e_conv=1e-09, r_conv=1e-09, maxiter=20)
-
-omega1 = 0.0656
-
-#resp.linresp(omega1)
-
-# Creating dictionaries
-# X_1 = X(-omega); X_2 = X(omega)
-# Y_1 = Y(-omega); Y_2 = Y(omega)
-# X_neg = X1(-omega) , X2(-omega)
-# X_pos, Y_neg, Y_pos
-X_1 = {}
-X_2 = {}
-Y_1 = {}
-Y_2 = {}
-
-string = "MU_Z"
-
 A = lresp.lpertbar[string]
-
-print("solving for X") 
-X_2[string] = lresp.local_solve_right(A, omega1, hbar_sim, e_conv=1e-09, r_conv=1e-09, maxiter = 20) 
-print("solving for Y") 
-X_2[string] = lresp.local_solve_right(A, omega1, hbar_sim, e_conv=1e-09, r_conv=1e-09, maxiter = 20) 
+print("solving for X")
+X_2[string] = lresp.local_solve_right(A, omega1, hbar_sim, e_conv=1e-09, r_conv=1e-09, maxiter = 20)
+print("solving for Y")
 Y_2[string] = lresp.local_solve_left(A, omega1, e_conv= 1e-09, r_conv=1e-09, maxiter =20)

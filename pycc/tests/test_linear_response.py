@@ -44,7 +44,7 @@ rhf_e, rhf_wfn = psi4.energy('SCF', return_wfn=True)
 e_conv = 1e-12
 r_conv = 1e-12
 
-cc = pycc.ccwfn(rhf_wfn, local = 'PNO', local_cutoff = 1e-6, filter = True)
+cc = pycc.ccwfn(rhf_wfn, local = 'PNO', local_cutoff = 1e-7, filter = True)
 ecc = cc.solve_cc(e_conv, r_conv)
 hbar = pycc.cchbar(cc)
 cclambda = pycc.cclambda(cc, hbar)

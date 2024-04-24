@@ -2034,7 +2034,10 @@ class ccresponse(object):
         # initial guess, comment out omega
         X1 = pertbar.Avo.T/(Dia) # + omega)
         X2 = pertbar.Avvoo/(Dijab) #  + omega)
- 
+        
+        if self.ccwfn.local is not None and self.ccwfn.filter is True:
+            X1, X2 = self.ccwfn.Local.filter_res(X1, X2)
+
         pseudo = self.pseudoresponse(pertbar, X1, X2)
         print(f"Iter {0:3d}: CC Pseudoresponse = {pseudo.real:.15f} dP = {pseudo.real:.5E}")
 
@@ -2116,7 +2119,7 @@ class ccresponse(object):
 
             #Xv{ii}
             lX1 = Avo[ii].copy()
-            print("shape", lX1.shape)
+           # print("shape", lX1.shape)
             eps_lvir = self.cchbar.Hvv[ii] 
             for a in range(self.Local.dim[ii]):
                 lX1[a] /= (eps_occ[i]) #  - eps_lvir[a,a])
@@ -2294,7 +2297,7 @@ class ccresponse(object):
 
             #Xv{ii}
             lX1 = Avo[ii].copy()
-            print("shape", lX1.shape)
+            #print("shape", lX1.shape)
             eps_lvir = self.cchbar.Hvv[ii]
             for a in range(self.Local.dim[ii]):
                 lX1[a] /= (eps_occ[i]) #  - eps_lvir[a,a])
@@ -2371,14 +2374,15 @@ class ccresponse(object):
 
         #for local only first line is working
         r_X1 = (pertbar.Avo.T - omega * X1).copy()
-        #r_X1 += contract('ie,ae->ia', X1, hbar.Hvv)
-        # print("Canonical r_X1\n", np.linalg.norm(r_X1))
-        #r_X1 -= contract('ma,mi->ia', X1, hbar.Hoo)
-        #r_X1 += 2.0*contract('me,maei->ia', X1, hbar.Hovvo)
-        #r_X1 -= contract('me,maie->ia', X1, hbar.Hovov)
-        #r_X1 += contract('me,miea->ia', hbar.Hov, (2.0*X2 - X2.swapaxes(0,1)))
-        #r_X1 += contract('imef,amef->ia', X2, (2.0*hbar.Hvovv - hbar.Hvovv.swapaxes(2,3)))
-        #r_X1 -= contract('mnae,mnie->ia', X2, (2.0*hbar.Hooov - hbar.Hooov.swapaxes(0,1)))
+        r_X1 += contract('ie,ae->ia', X1, hbar.Hvv)
+        r_X1 -= contract('ma,mi->ia', X1, hbar.Hoo)
+        # I am currently debugging the H_bar expressions below
+        r_X1 += 2.0*contract('me,maei->ia', X1, hbar.Hovvo) # completed but i think something is wrong
+        r_X1 -= contract('me,maie->ia', X1, hbar.Hovov) # i got the H_bar in this expression coded up
+
+        r_X1 += contract('me,miea->ia', hbar.Hov, (2.0*X2 - X2.swapaxes(0,1)))
+        r_X1 += contract('imef,amef->ia', X2, (2.0*hbar.Hvovv - hbar.Hvovv.swapaxes(2,3)))
+        r_X1 -= contract('mnae,mnie->ia', X2, (2.0*hbar.Hooov - hbar.Hooov.swapaxes(0,1)))
 
         return r_X1
 
@@ -2392,18 +2396,36 @@ class ccresponse(object):
         for i in range(no):
             ii = i*no + i
 
-            # lr_X1 += contract('e, ae -> a', self.X1[i], hbar.Hvv)
             lr_X1 = (Avo[ii] - omega * self.X1[i]).copy()
-            # for m in range(no):
-            #     # lr_X1 -= contract('ma, mi -> ia', X1, hbar.Hoo)
-            #     lr_X1 -= contract('a, i -> ia', self.X1[m], hbar.Hoo[m])
-            lr_X1_all.append(lr_X1)
+            lr_X1 += contract('e, ae -> a', self.X1[i], hbar.Hvv[ii])
+            for m in range(no):
+                mm = m*no + m
+                mi = m*no + i
+                im = i*no + m
+                imm = im*no + m
+                Q = self.ccwfn.Local.Q
+                L = self.ccwfn.Local.L
+                S_mmii = (Q[mm] @ L[mm]).T @ (Q[ii] @ L[ii])
+                S_miii = (Q[mi] @ L[mi]).T @ (Q[ii] @ L[ii])
+                S_imii = (Q[im] @ L[im]).T @ (Q[ii] @ L[ii])
+                S_miim = (Q[mi] @ L[mi]).T @ (Q[im] @ L[im])
+                lr_X1 -= (self.X1[m] @ S_mmii) * hbar.Hoo[m, i] # either this or the next line
+                # lr_X1 -= contract('a,  -> a', self.X1[m] @ S_mmii, hbar.Hoo[i, m])
+                # Debugging the H_bar expressions below
+                lr_X1 += 2.0 * contract('e, ae -> a', self.X1[m], hbar.Hov_ii_v_mm_o[im]) # I coded up the H_bar for this expression, but it still doesn't match with the sim code
+                lr_X1 -= contract('e, ae -> a', self.X1[m], hbar.Hov_ii_ov_mm[mi]) # I coded up the H_bar for this expression and it matches
 
-        # lr_X1 += 2.0 * contract('me, maei -> ia', X1, hbar.Hovvo)
-        # lr_X1 -= contract('me, maie -> ia', X1, hbar.Hovov)
-        # lr_X1 += contract('me, miea -> ia', hbar.Hov, (2.0 * X2 - X2.swapaxes(0, 1)))
-        # lr_X1 += contract('imef, amef -> ia', X2, (2.0 * hbar.Hvovv - hbar.Hvovv.swapaxes(2, 3)))
-        # lr_X1 -= contract('mnae, mnie -> ia', X2, (2.0 * hbar.Hooov -hbar.Hooov.swapaxes(0, 1)))
+                lr_X1 += contract('e, ea -> a', hbar.Hov[mi][m], (2.0 * self.X2[mi] @ S_miii - S_miim @ self.X2[im] @ S_imii))
+                lr_X1 += contract('ef, aef -> a', self.X2[im], (2.0 * hbar.Hamef_im[im] - hbar.Hamfe_im[mi]))
+                for n in range(no):
+                    mn = m * no + n
+                    mni = mn * no + i
+                    nm = n * no + m
+                    nmi = nm * no + i
+                    imn = im * no + n
+                    S_iimn = (Q[ii] @ L[ii]).T @ (Q[mn] @ L[mn])
+                    lr_X1 -= contract('ae, e -> a', S_iimn @ self.X2[mn], (2.0 * hbar.Hmnie_mn[imn] - hbar.Hnmie_mn[imn]))
+                lr_X1_all.append(lr_X1)
 
         return lr_X1_all
 

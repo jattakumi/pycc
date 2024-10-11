@@ -8,12 +8,13 @@ if __name__ == "__main__":
 
 import psi4
 import time
+from time import process_time
 import numpy as np
 import torch
 from .utils import helper_diis, cc_contract
 from .hamiltonian import Hamiltonian
 from .local import Local
-from .cctriples import t_tjl, t3c_ijk, t3d_ijk, t3c_abc, t3d_abc, t3_pert_ijk
+from .cctriples import t_tjl, t3c_ijk, t3d_ijk, t3c_abc, t3d_abc
 from .lccwfn import lccwfn
 
 class ccwfn(object):
@@ -87,9 +88,6 @@ class ccwfn(object):
 
         self.make_t3_density = kwargs.pop('make_t3_density', False)
 
-        # RT-CC3 calculations requiring additional terms when an external perturbation is present 
-        self.real_time = kwargs.pop('real_time', False)
-
         valid_local_models = [None, 'PNO', 'PAO','CPNO++','PNO++']
         local = kwargs.pop('local', None)
         # TODO: case-protect this kwarg
@@ -97,7 +95,7 @@ class ccwfn(object):
             raise Exception("%s is not an allowed local-CC model." % (local))
         self.local = local
         self.local_cutoff = kwargs.pop('local_cutoff', 1e-5)
-        self.ed_omega = kwargs.pop('omega', 0)
+        self.ed_omega = kwargs.pop('omega', 0) 
 
         valid_local_MOs = ['PIPEK_MEZEY', 'BOYS']
         local_MOs = kwargs.pop('local_mos', 'PIPEK_MEZEY')
@@ -253,6 +251,20 @@ class ccwfn(object):
             CC correlation energy
         """
         ccsd_tstart = time.time()
+       
+         #initialize variables for timing each function
+        self.fae_tl = 0
+        self.fme_tl = 0
+        self.fmi_tl = 0
+        self.wmnij_tl = 0
+        self.zmbij_tl = 0
+        self.wmbej_tl = 0
+        self.wmbje_tl = 0
+        self.tau_tl = 0
+        self.r1_tl = 0
+        self.r2_tl = 0
+        self.energy_tl = 0
+        
 
         o = self.o
         v = self.v
@@ -323,13 +335,25 @@ class ccwfn(object):
                         print("E(%s) = %20.15f" % (self.model, ecc))
                     self.ecc = ecc
                     print("E(TOT)  = %20.15f" % (ecc + self.eref))
+                    print('Time table for intermediates')
+                    print("Fae = %6.6f" % self.fae_tl)
+                    print("Fme = %6.6f" % self.fme_tl)
+                    print("Fmi = %6.6f" % self.fmi_tl)
+                    print("Wmnij = %6.6f" % self.wmnij_tl)
+                    print("Zmbij = %6.6f" % self.zmbij_tl)
+                    print("Wmbej = %6.6f" % self.wmbej_tl)
+                    print("Wmbje = %6.6f" % self.wmbje_tl)
+                    print("Tau_t = %6.6f" % self.tau_tl)
+                    print("r1_t = %6.6f" % self.r1_tl)
+                    print("r2_t = %6.6f" % self.r2_tl)
+                    print("Energy_t = %6.6f" % self.energy_tl)
                     return ecc
 
             diis.add_error_vector(self.t1, self.t2)
             if niter >= start_diis:
                 self.t1, self.t2 = diis.extrapolate(self.t1, self.t2)
 
-    def residuals(self, F, t1, t2, real_time=False):
+    def residuals(self, F, t1, t2):
         """
         Parameters
         ----------
@@ -386,13 +410,9 @@ class ccwfn(object):
             for i in range(no):
                 for j in range(no):
                     for k in range(no):
-                        t3 = t3c_ijk(o, v, i, j, k, t2, Wabei_cc3, Wmbij_cc3, F, contract, WithDenom=True)
-                        if real_time is True:
-                            if isinstance(t1, torch.Tensor):
-                                V = F - self.H.F.clone()
-                            else:
-                                V = F - self.H.F.copy()
-                            t3 -= t3_pert_ijk(o, v, i, j, k, t2, V, F, contract)
+                        t3 = t3c_ijk(o, v, i, j, k, t2, Wabei_cc3, Wmbij_cc3, F,
+contract, WithDenom=True)
+
                         X1[i] += contract('abc,bc->a', t3 - t3.swapaxes(0,2), L[j,k,v,v])
                         X2[i,j] += contract('abc,c->ab', t3 - t3.swapaxes(0,2), Fme[k])
                         X2[i,j] += contract('abc,dbc->ad', 2 * t3 - t3.swapaxes(1,2) - t3.swapaxes(0,2), Wamef_cc3.swapaxes(0,1)[k])
@@ -412,6 +432,7 @@ class ccwfn(object):
 
 
     def build_Fae(self, o, v, F, L, t1, t2):
+        fae_start = process_time()
         contract = self.contract
         if self.model == 'CCD':
             if isinstance(t1, torch.Tensor):
@@ -427,10 +448,14 @@ class ccwfn(object):
             Fae = Fae - 0.5 * contract('me,ma->ae', F[o,v], t1)
             Fae = Fae + contract('mf,mafe->ae', t1, L[o,v,v,v])
             Fae = Fae - contract('mnaf,mnef->ae', self.build_tau(t1, t2, 1.0, 0.5), L[o,o,v,v])
+        
+        fae_end = process_time()
+        self.fae_tl += fae_end - fae_start
         return Fae
 
 
     def build_Fmi(self, o, v, F, L, t1, t2):
+        fmi_start = process_time()
         contract = self.contract
         if self.model == 'CCD':
             if isinstance(t1, torch.Tensor):
@@ -446,10 +471,13 @@ class ccwfn(object):
             Fmi = Fmi + 0.5 * contract('ie,me->mi', t1, F[o,v])
             Fmi = Fmi + contract('ne,mnie->mi', t1, L[o,o,o,v])
             Fmi = Fmi + contract('inef,mnef->mi', self.build_tau(t1, t2, 1.0, 0.5), L[o,o,v,v])
+        fmi_end = process_time()
+        self.fmi_tl += fmi_end - fmi_start
         return Fmi
 
 
     def build_Fme(self, o, v, F, L, t1):
+        fme_start = process_time()
         contract = self.contract
         if self.model == 'CCD':
             return
@@ -459,10 +487,13 @@ class ccwfn(object):
             else:
                 Fme = F[o,v].copy()
             Fme = Fme + contract('nf,mnef->me', t1, L[o,o,v,v])
+        fme_end = process_time()
+        self.fme_tl += fme_end - fme_start
         return Fme
 
 
     def build_Wmnij(self, o, v, ERI, t1, t2):
+        wmnij_start = process_time()
         contract = self.contract
         if self.model == 'CCD':
             if isinstance(t1, torch.Tensor):
@@ -481,10 +512,13 @@ class ccwfn(object):
                 Wmnij = Wmnij + contract('jf, mnif->mnij', t1, contract('ie,mnef->mnif', t1, ERI[o,o,v,v]))
             else:
                 Wmnij = Wmnij + contract('ijef,mnef->mnij', self.build_tau(t1, t2), ERI[o,o,v,v])
+        wmnij_end = process_time()
+        self.wmnij_tl += wmnij_end - wmnij_start
         return Wmnij
 
 
     def build_Wmbej(self, o, v, ERI, L, t1, t2):
+        wmbej_start = process_time()
         contract = self.contract
         if self.model == 'CCD':
             if isinstance(t1, torch.Tensor):
@@ -504,10 +538,13 @@ class ccwfn(object):
            Wmbej = Wmbej - contract('nb,mnej->mbej', t1, ERI[o,o,v,o])
            Wmbej = Wmbej - contract('jnfb,mnef->mbej', self.build_tau(t1, t2, 0.5, 1.0), ERI[o,o,v,v])
            Wmbej = Wmbej + 0.5 * contract('njfb,mnef->mbej', t2, L[o,o,v,v])
+        wmbej_end = process_time()
+        self.wmbej_tl += wmbej_end - wmbej_start
         return Wmbej
 
 
     def build_Wmbje(self, o, v, ERI, t1, t2):
+        wmbje_start = process_time()
         contract = self.contract
         if self.model == 'CCD':
             if isinstance(t1, torch.Tensor):
@@ -525,20 +562,26 @@ class ccwfn(object):
            Wmbje = Wmbje - contract('jf,mbfe->mbje', t1, ERI[o,v,v,v])
            Wmbje = Wmbje + contract('nb,mnje->mbje', t1, ERI[o,o,o,v])
            Wmbje = Wmbje + contract('jnfb,mnfe->mbje', self.build_tau(t1, t2, 0.5, 1.0), ERI[o,o,v,v])
+        wmbje_end = process_time()
+        self.wmbje_tl += wmbje_end - wmbje_start
         return Wmbje
 
 
     def build_Zmbij(self, o, v, ERI, t1, t2):
+        zmbij_start = process_time()
         contract = self.contract
         if self.model == 'CCD':
             return
         elif self.model == 'CC2':
             return contract('mbif,jf->mbij', contract('mbef,ie->mbif', ERI[o,v,v,v], t1), t1)
         else:
+            zmbij_end = process_time()
+            self.zmbij_tl += zmbij_end - zmbij_start
             return contract('mbef,ijef->mbij', ERI[o,v,v,v], self.build_tau(t1, t2))
 
 
     def r_T1(self, o, v, F, ERI, L, t1, t2, Fae, Fme, Fmi):
+        r1_start = process_time()
         contract = self.contract
         if self.model == 'CCD':
             if isinstance(t1, torch.Tensor):
@@ -556,10 +599,13 @@ class ccwfn(object):
             r_T1 = r_T1 + contract('nf,nafi->ia', t1, L[o,v,v,o])
             r_T1 = r_T1 + contract('mief,maef->ia', (2.0*t2 - t2.swapaxes(2,3)), ERI[o,v,v,v])
             r_T1 = r_T1 - contract('mnae,nmei->ia', t2, L[o,o,v,o])
+        r1_end = process_time()
+        self.r1_tl += r1_end - r1_start
         return r_T1
 
 
     def r_T2(self, o, v, F, ERI, L, t1, t2, Fae, Fme, Fmi, Wmnij, Wmbej, Wmbje, Zmbij):
+        r2_start = process_time()
         contract = self.contract
         if self.model == 'CCD':
             if isinstance(t1, torch.Tensor):
@@ -620,6 +666,8 @@ class ccwfn(object):
                 del tmp
 
         r_T2 = r_T2 + r_T2.swapaxes(0,1).swapaxes(2,3)
+        r2_end = process_time()
+        self.r2_tl += r2_end - r2_start
         return r_T2
 
     # Intermedeates needed for CC3
@@ -711,12 +759,15 @@ class ccwfn(object):
         return W
 
     def cc_energy(self, o, v, F, L, t1, t2):
+        energy_start = process_time()
         contract = self.contract
         if self.model == 'CCD':
             ecc = contract('ijab,ijab->', t2, L[o,o,v,v])
         else:
             ecc = 2.0 * contract('ia,ia->', F[o,v], t1)
             ecc = ecc + contract('ijab,ijab->', self.build_tau(t1, t2), L[o,o,v,v])
+        energy_end = process_time()
+        self.energy_tl += energy_end - energy_start
         return ecc
 
     def t3_density(self):

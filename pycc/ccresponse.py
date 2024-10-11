@@ -10,6 +10,7 @@ if __name__ == "__main__":
 
 import numpy as np
 import time
+from time import process_time
 from .utils import helper_diis
 
 class ccresponse(object):
@@ -370,6 +371,7 @@ class ccresponse(object):
                     check.append(polar)
 
     def sym_linresp(self, pertkey_a, pertkey_b, X1_A, X2_A, X1_B, X2_B):
+        sym_lr_start = process_time()
         """
             Calculate the CC symmetric linear response function for polarizability at field-frequency omega(w1).
 
@@ -427,7 +429,8 @@ class ccresponse(object):
         # #
 
         polar1 += LHX1Y1 + LHX2Y2
-
+        sym_lr_end = process_time()
+        self.sym_lr = sym_lr_end - sym_lr_start
         return -1.0 * polar1
 
     def LCX(self, pertkey_a, X1_B, X2_B):
@@ -435,7 +438,7 @@ class ccresponse(object):
         LCX: Is the first second term contributions to the linear response symmetric function.
         <0|(1 + L^(0)){ [\bar{A}^(0), X^(1)(B)] + [\bar{B}^(1), X^(1)(B)]}|0>
         """
-
+        LCX_start = process_time()
         contract = self.ccwfn.contract
         l1 = self.cclambda.l1
         l2 = self.cclambda.l2
@@ -478,9 +481,12 @@ class ccresponse(object):
         tmp = contract("ijab, ijcb -> ac", l2, X2_B)
         LCX += 0.5 * contract("ac, ac -> ", tmp, Avv)
 
+        LCX_end = process_time()
+        self.LCX_t = LCX_end - LCX_start
         return LCX
 
     def LHX1Y1(self, X1_B, X1_A):
+        LHX1Y1_start = process_time()
         """
         LHX1Y1: Is a function for the second term (quadratic term) contribution to the linear response
         function, where both perturbed amplitudes are first order.
@@ -531,9 +537,13 @@ class ccresponse(object):
         temp = contract('klaj, jb -> klab', temp, X1_A)
         LHX1Y1 += 0.5 * contract('klab, klab', temp, l2)
 
+        LHX1Y1_end = process_time()
+        self.LHX1Y1_t = LHX1Y1_end - LHX1Y1_start
+
         return LHX1Y1
 
     def LHX2Y2(self, X2_A, X2_B):
+        LHX2Y2_start = process_time()
         """
         LHX2Y2: Is a function for the second term (quadratic term) contribution to the linear response
         function, where both perturbed amplitudes are second order.
@@ -570,9 +580,12 @@ class ccresponse(object):
         temp = contract("ikbd, jkbc -> ijcd", temp, X2_B)
         LHX2Y2 += 0.5 * contract("ijcd, ijcd -> ", temp, l2)
 
+        LHX2Y2_end = process_time()
+        self.LHX2Y2_t = LHX2Y2_end - LHX2Y2_start
         return LHX2Y2
 
     def LHX1Y2(self, X1_B, X2_A):
+        LHX1Y2_start = process_time()
         """
         LHX1Y2: Is a function for the second term (quadratic term) contribution to the linear response
         function, where perturbed amplitudes is a first order and a second order.
@@ -644,6 +657,8 @@ class ccresponse(object):
         temp = contract('jlac, ijab -> libc', temp, X2_A)
         LHX1Y2 += contract('libc, libc -> ', temp, l2)
 
+        LHX1Y2_end = process_time()
+        self.LHX1Y2_t = LHX1Y2_end - LHX1Y2_start
         return LHX1Y2
 
 # Below are all the local parts of lin_resp sym
@@ -1437,6 +1452,7 @@ class ccresponse(object):
 
         return LHX1Y2
     def linresp_asym(self, pertkey_a, X1_B, X2_B, Y1_B, Y2_B):
+        start_lr_asym = process_time()
         """
     Calculate the CC linear response function for polarizability at field-frequency omega(w1).
 
@@ -1468,9 +1484,10 @@ class ccresponse(object):
         polar2 = 0
         pertbar_A = self.pertbar[pertkey_a]
         Avvoo = pertbar_A.Avvoo.swapaxes(0, 2).swapaxes(1, 3)
-        # <0|Y1(B) * A_bar|0>
+
+        # # <0|Y1(B) * A_bar|0>
         polar1 += contract("ai, ia -> ", pertbar_A.Avo, Y1_B)
-        # <0|Y2(B) * A_bar|0>
+        # # <0|Y2(B) * A_bar|0>
         polar1 += 0.5 * contract("abij, ijab -> ", Avvoo, Y2_B)
         polar1 += 0.5 * contract("baji, ijab -> ", Avvoo, Y2_B)
         # <0|[A_bar, X(B)]|0>
@@ -1480,18 +1497,18 @@ class ccresponse(object):
         polar2 += contract("ac, ac -> ", tmp, pertbar_A.Avv)
         tmp = contract("ia, ka -> ik", l1, X1_B)
         polar2 -= contract("ik, ki -> ", tmp, pertbar_A.Aoo)
-        # <0|L1(0)[a_bar, X2(B)]|0>
+        # # <0|L1(0)[a_bar, X2(B)]|0>
         tmp = contract("ia, jb -> ijab", l1, pertbar_A.Aov)
         polar2 += 2.0 * contract("ijab, ijab -> ", tmp, X2_B)
         polar2 += -1.0 * contract("ijab, ijba -> ", tmp, X2_B)
-        # <0|L2(0)[A_bar, X1(B)]|0>
+        # # <0|L2(0)[A_bar, X1(B)]|0>
         tmp = contract("ijbc, bcaj -> ia", l2, pertbar_A.Avvvo)
         polar2 += contract("ia, ia -> ", tmp, X1_B)
         tmp = contract("ijab, kbij -> ak", l2, pertbar_A.Aovoo)
         polar2 -= 0.5 * contract("ak, ka -> ", tmp, X1_B)
         tmp = contract("ijab, kaji -> bk", l2, pertbar_A.Aovoo)
         polar2 -= 0.5 * contract("bk, kb -> ", tmp, X1_B)
-        # <0|L2(0)[A_bar, X2(B)]|0>
+        # # <0|L2(0)[A_bar, X2(B)]|0>
         tmp = contract("ijab, kjab -> ik", l2, X2_B)
         polar2 -= 0.5 * contract("ik, ki -> ", tmp, pertbar_A.Aoo)
         tmp = contract("ijab, kiba-> jk", l2, X2_B)
@@ -1503,137 +1520,150 @@ class ccresponse(object):
 
         return -1.0 * (polar1 + polar2)
 
-    def local_linresp(self, pertkey_a, X1_B, Y1_B, X2_B, Y2_B, Q, L, dim):
-        contract = self.contract
-        polar1 = 0.0
-        polar2 = 0.0
-        # Aoo = []
-        Aov = []
-        Avv = []
-        Avo = []
-        Avvoo = []
-        Avvvo = []
-        Avvvo_ii = []
-        Aovoo = []
-        X_ov = []
-        Y_ov = []
-        X_oovv = []
-        Y_oovv = []
-        no = self.no
-        pertbar_A = self.pertbar[pertkey_a]
-        Aoo = pertbar_A.Aoo
-        # print('Aoo\n', Aoo)
-        # Q = self.ccwfn.Local.Q
-        # L = self.ccwfn.Local.L
-        l1 = []
-        l2 = []
-        for i in range(no):
-            ii = i * no + i
-            QL_ii = Q[ii] @ L[ii]
-            # print("="*10, "local_Avo", "="*10,'\n', (Avo))  #np.linalg.norm
-            lX_ov = contract('ia, aA -> iA', X1_B, QL_ii)
-            lY_ov = contract('ia, aA -> iA', Y1_B, QL_ii)
-            # if ii ==0:
-            #     print("="*10, "local_Avo", "="*10,'\n', np.linalg.norm(Avo))  #np.linalg.norm
-            l_1 = contract('ia, aA -> iA', self.cclambda.l1, QL_ii)
-            X_ov.append(lX_ov)
-            Y_ov.append(lY_ov)
-            l1.append(l_1)
-            # print("="*10, "local_Y_ov", "="*10,'\n', np.linalg.norm(Y_ov))
-            for j in range(no):
-                ij = i * no + j
-                QL_ij = Q[ij] @ L[ij]
-                lAvo = (pertbar_A.Avo.T @ QL_ij).T
-                lAov = (pertbar_A.Aov @ QL_ij)
-                lAvv = (QL_ij.T @ pertbar_A.Avv @ QL_ij)
-                Avo.append(lAvo)
-                Aov.append(lAov)
-                Avv.append(lAvv)
-                lAvvoo = contract('ijab, aA, bB->ABij', pertbar_A.Avvoo, QL_ij,
-                                  QL_ij)  # QL_ij.T @ pertbar_A.Avvoo[i,j] @ QL_ij
-                Avvoo.append(lAvvoo)
-                lAvvvo = np.zeros((dim[ij], dim[ij], dim[ij], no))
-                lAvvvo += contract('abck, aA, bB, cC ->ABCk', pertbar_A.Avvvo, QL_ij, QL_ij, QL_ij)
-                Avvvo.append(lAvvvo)
-                # Ab_{ij} c_{ij} a_{ii} j
-                lAvvvo = np.zeros((dim[ij], dim[ij], dim[ii], no))
-                lAvvvo += contract('abck, aA, bB, cC ->ABCk', pertbar_A.Avvvo, QL_ij, QL_ij, QL_ii)
-                Avvvo_ii.append(lAvvvo)
-                lAovoo = np.zeros((no, dim[ij], no, no))
-                lAovoo += contract('iajk, aA-> iAjk', pertbar_A.Aovoo, QL_ij)
-                Aovoo.append(lAovoo)
-                lX_oovv = np.zeros((no, no, dim[ij], dim[ij]))
-                lX_oovv += contract('ijab, aA, bB -> ijAB', X2_B, QL_ij, QL_ij)
-                X_oovv.append(lX_oovv)
-                lY_oovv = np.zeros((no, no, dim[ij], dim[ij]))
-                lY_oovv += contract('ijab, aA, bB -> ijAB', Y2_B, QL_ij, QL_ij)
-                Y_oovv.append(lY_oovv)
-                l_2 = contract('ijab, aA, bB -> ijAB', self.cclambda.l2, QL_ij, QL_ij)
-                l2.append(l_2)
-                # if ij == 0:
-                #     print("=" * 10, "local_lY_oovv", "=" * 10, '\n', np.linalg.norm(lY_oovv))
-        # Now implementing the local linear response code to compute polarizability
-        for i in range(no):
-            ii = i * no + i
-            QL_ii = Q[ii] @ L[ii]
-            # <0|Y1(B) * A_bar|0>
-            # the first [ij] indicates the pair space, ij and the second [i] indicates the o part of Avo and Yov
-            # polar1 += contract("a, a -> ", Avo[ii][:, i], Y_ov[i][i])
-            # <0|[A_bar, X(B)]|0>
-            polar2 += 2.0 * contract("a, a -> ", Aov[ii][i, :], X_ov[i][i])
-            # < 0|L1(0)[A_bar, X2(B)]|0 >
-            tmp = contract("a, c -> ac", l1[i][i], X_ov[i][i])
-            polar2 += contract("ac, ac -> ", tmp, Avv[ii][:, :])
-            # 6th polarterm
-            for k in range(no):
-                kk = k * no + k
-                Siikk = (Q[ii] @ L[ii]).T @ (Q[kk] @ L[kk])  # (Q[ii] @ L[ii]).T @ (Q[kk] @ L[kk])
-                tmp = contract("a, a -> ", l1[i][i], X_ov[k][k] @ Siikk.T)
-                polar2 -= tmp * Aoo[k, i]
-            for j in range(no):
-                ij = i * no + j
-                jj = j * no + j
-                # <0|Y2(B) * A_bar|0>
-                # polar1 += 0.5 * contract("ab, ab -> ", Avvoo[ij][:, :, i, j], Y_oovv[ij][i, j, :, :])
-                # polar1 += 0.5 * contract("ba, ab -> ", Avvoo[ij][:, :, j, i], Y_oovv[ij][i, j, :, :])
-                # <0|L1(0)[a_bar, X2(B)]|0>
-                # lia_{ii} Ajb_{jj} -> (Sij,ii * Za_{ii} b_{jj} * Sijjj.T) * Xija_{ij} b_{ij}
-                Sijii = (Q[ij] @ L[ij]).T @ (Q[ii] @ L[ii])
-                Sijjj = (Q[ij] @ L[ij]).T @ (Q[jj] @ L[jj])
-                tmp = contract("a, b -> ab", l1[i][i], Aov[jj][j, :])
-                polar2 += 2.0 * contract("ab, ab -> ", Sijii @ tmp @ Sijjj.T, X_oovv[ij][i, j, :, :])
-                polar2 += -1.0 * contract("ab, ba -> ", Sijii @ tmp @ Sijjj.T, X_oovv[ij][i, j, :, :])
+    def local_linresp(self, axis, pertkey_a, X1_B, Y1_B, X2_B, Y2_B):
+        """
+         Calculate the CC linear response function for polarizability at field-frequency omega(w1).
 
-                # <0|L2(0)[A_bar, X1(B)]|0>
-                # lij b_{ij} c_{ij} Ab_{ij} c_{ij} a_{ii} j -> Zia_{ii} * Xia_{ii}
-                tmp = contract("bc, bca -> a", l2[ij][i, j], Avvvo_ii[ij][:, :, :, j])
-                polar2 += contract("a, a -> ", tmp, X_ov[i][i])
+         The linear response function, <<A;B(w1)>> generally reuires the following perturbed wave functions and frequencies:
+
+         Parameters
+         ----------
+         pertkey_a: string
+             String identifying the one-electron perturbation, A along a cartesian axis
+
+
+         Return
+         ------
+         polar: float
+              A value of the chosen linear response function corresponding to compute polariazabiltity in a specified cartesian diresction.
+             """
+
+        contract = self.ccwfn.contract
+        l1 = self.cclambda.l1
+        l2 = self.cclambda.l2
+        t1 = self.lccwfn.t1
+        t2 = self.lccwfn.t2
+        no = self.ccwfn.no
+        v = self.ccwfn.v
+        Sijmn = self.Local.Sijmn
+        pertbar_A = self.lpertbar[pertkey_a]
+        QL = self.Local.QL
+        pert = self.H.mu[axis]
+        Sijmi = self.ccwfn.Local.Sijmi
+        Sijmm = self.ccwfn.Local.Sijmm
+
+        # Please refer to eqn 78 of [Crawford: https://crawford.chem.vt.edu/wp-content/uploads/2022/06/cc_response.pdf].
+        # Writing H(1)(omega) = B, T(1)(omega) = X, L(1)(omega) = y
+        # <<A;B>> = <0|Y(B) * A_bar|0> + <0| (1 + L(0))[A_bar, X(B)}|0>
+        #                 polar1                polar2
+        polar1 = 0
+        polar2 = 0
+
+        # Avvoo = pertbar_A.Avvoo.swapaxes(0, 2).swapaxes(1, 3)
+        Avvoo = pertbar_A.Avvoo.copy()
+        # <0|Y1(B) * A_bar|0>
+        # polar1 += contract("ai, ia -> ", pertbar_A.Avo, Y1_B)
+        for i in range(no):
+            ii = i * no + i
+
+            # tmp = QL[ii].T @ pert[v, i].copy()
+            # tmp += t1[i] @ (QL[ii].T @ pert[v, v].copy() @ QL[ii]).T
+            #
+            # # Sijmi = self.ccwfn.Local.Sijmi
+            # for m in range(no):
+            #     mi = m * no + i
+            #     iim = ii * no + m
+            #     tmp -= (t1[m] @ Sijmm[iim].T) * pert[m, i].copy()
+            #     tmp1 = (2.0 * t2[mi] - t2[mi].swapaxes(0, 1)) @ Sijmi[iim].T
+            #     tmp += contract('ea,e->a', tmp1, pert[m, v].copy() @ QL[mi])
+            #     tmp -= contract('e,a,e->a', t1[i], t1[m] @ Sijmm[iim].T, pert[m, v].copy() @ QL[ii])
+            # polar1 += contract('a, a', tmp, Y1_B[i].copy())
+        # <0|Y2(B) * A_bar|0>
+        # polar1 += 0.5 * contract("abij, ijab -> ", Avvoo, Y2_B)
+        # polar1 += 0.5 * contract("baji, ijab -> ", Avvoo, Y2_B)
+            for j in range(no):
+                ij = i * no + j
+                ji = j * no + i
+                polar1 += 0.5 * contract('ab, ab', Avvoo[ij].copy(), Y2_B[ij].copy())
+                polar1 += 0.5 * contract('ba, ab', Avvoo[ji].copy(), Y2_B[ij].copy())
+        # <0|[A_bar, X(B)]|0>
+        # polar2 += 2.0 * contract("ia, ia -> ", pertbar_A.Aov, X1_B)
+        for i in range(no):
+            ii = i * no + i
+            polar2 += 2.0 * contract('a, a', pertbar_A.Aov[ii][i], X1_B[i])
+        # <0|L1(0) [A_bar, X1(B)]|0>
+        # tmp = contract("ia, ic -> ac", l1, X1_B)
+        # polar2 += contract("ac, ac -> ", tmp, pertbar_A.Avv)
+        for i in range(no):
+            ii = i * no + i
+            temp = contract('ac, c -> a', pertbar_A.Avv[ii].copy(), X1_B[i])
+            polar2 += contract('a, a', temp, l1[i])
+        # tmp = contract("ia, ka -> ik", l1, X1_B)
+        # polar2 -= contract("ik, ki -> ", tmp, pertbar_A.Aoo)
+        for i in range(no):
+            for k in range(no):
+                ii = i * no + i
+                kk = k * no + k
+                kkii = kk * (no * no) + ii
+                temp = contract('a, a', Sijmn[kkii] @ l1[i], X1_B[k])
+                polar2 -= temp * pertbar_A.Aoo[k, i]
+        # <0|L1(0)[a_bar, X2(B)]|0>
+        # tmp = contract("ia, jb -> ijab", l1, pertbar_A.Aov)
+        # polar2 += 2.0 * contract("ijab, ijab -> ", tmp, X2_B)
+        # polar2 += -1.0 * contract("ijab, ijba -> ", tmp, X2_B)
+        for i in range(no):
+            ii = i * no + i
+            for j in range(no):
+                ij = i * no + j
+                iiij = ii * (no * no) + ij
+                temp = contract('a, b -> ab', l1[i], pertbar_A.Aov[ij][j])
+                polar2 += 2.0 * contract('ab, ab', temp, Sijmn[iiij] @ X2_B[ij])
+                polar2 += -1.0 * contract('ab, ba', temp, X2_B[ij] @ Sijmn[iiij].T)
+
+        # <0|L2(0)[A_bar, X1(B)]|0>
+        # tmp = contract("ijbc, bcaj -> ia", l2, pertbar_A.Avvvo)
+        # polar2 += contract("ia, ia -> ", tmp, X1_B)
+        for i in range(no):
+            for j in range(no):
+                ij = i * no + j
+                temp = contract('bc, bca -> a', l2[ij], pertbar_A.Avvvj_ii[ij])
+                polar2 += contract('a, a', temp, X1_B[i])
+        # tmp = contract("ijab, kbij -> ak", l2, pertbar_A.Aovoo)
+        # polar2 -= 0.5 * contract("ak, ka -> ", tmp, X1_B)
                 for k in range(no):
                     kk = k * no + k
-                    kj = k * no + j
+                    ijkk = ij * (no * no) + kk
+                    temp = contract('ab, b -> a', l2[ij], pertbar_A.Aovoo[ij][k])
+                    polar2 -= 0.5 * contract('a, a', temp, X1_B[k] @ Sijmn[ijkk].T)
+        # tmp = contract("ijab, kaji -> bk", l2, pertbar_A.Aovoo)
+        # polar2 -= 0.5 * contract("bk, kb -> ", tmp, X1_B)
+                    temp = contract('ab, a -> b', l2[ij], pertbar_A.Aovoo_ji[ij][k])
+                    polar2 -= 0.5 * contract('b, b', temp, X1_B[k] @ Sijmn[ijkk].T)
+        # <0|L2(0)[A_bar, X2(B)]|0>
+        # tmp = contract("ijab, kjab -> ik", l2, X2_B)
+        # polar2 -= 0.5 * contract("ik, ki -> ", tmp, pertbar_A.Aoo)
+        for i in range(no):
+            for j in range(no):
+                ij = i * no + j
+                for k in range(no):
                     ki = k * no + i
-                    Skkij = (Q[kk] @ L[kk]).T @ (Q[ij] @ L[ij])
-                    Skjij = (Q[kj] @ L[kj]).T @ (Q[ij] @ L[ij])
-                    Skiij = (Q[ki] @ L[ki]).T @ (Q[ij] @ L[ij])
-                    # 10th and 11th polar terms
-                    # lija_{ij b_{ij} * Akb_{ij}ij -> Za_{ij}k * (Xka_{kk} * Skkij)
-                    tmp = contract("ab, b -> a", l2[ij][i, j], Aovoo[ij][k, :, i, j])
-                    polar2 -= 0.5 * contract("a, a -> ", tmp, X_ov[k][k] @ Skkij)
-
-                    # lija_{ij b_{ij} * Aka_{ij}ij -> Zb_{ij}k * (Xkb_{kk} * Skkij)
-                    tmp = contract("ab, a -> b", l2[ij][i, j], Aovoo[ij][k, :, j, i])
-                    polar2 -= 0.5 * contract("b, b -> ", tmp, X_ov[k][k] @ Skkij)
-
-                    # <0|L2(0)[A_bar, X1(B)]|0>
-                    tmp = contract("ab, kjab -> kj", l2[ij][i, j], X_oovv[ij][:, :])
-                    # 12 polar term
-                    polar2 -= 0.5 * tmp[k, j] * Aoo[k, i]
-                    tmp = contract("ab, ba-> ", l2[ij][i, j], Skiij.T @ X_oovv[ki][k, i, :, :] @ Skiij)
-                    polar2 -= 0.5 * tmp * Aoo[k, j]  # contract("jk, kj -> ", tmp, pertbar_A.Aoo)
-                tmp = contract("ab, ac -> bc", l2[ij][i, j], X_oovv[ij][i, j, :, :])
-                polar2 += 0.5 * contract("bc, bc -> ", tmp, Avv[ij][:, :])
-                tmp = contract("ab, cb -> ac", l2[ij][i, j], X_oovv[ij][i, j, :, :])
-                polar2 += 0.5 * contract("ac, ac -> ", tmp, Avv[ij][:, :])
+                    kj = k * no + j
+                    ijkj = ij * (no * no) + kj
+                    ijki = ij * (no * no) + ki
+                    temp = contract('ab, ab', l2[ij], Sijmn[ijkj] @ X2_B[kj] @ Sijmn[ijkj].T)
+                    polar2 -= 0.5 * temp * pertbar_A.Aoo[k, i]
+        # tmp = contract("ijab, kiba-> jk", l2, X2_B)
+        # polar2 -= 0.5 * contract("jk, kj -> ", tmp, pertbar_A.Aoo)
+                    temp = contract('ab, ba', l2[ij], Sijmn[ijki] @ X2_B[ki] @ Sijmn[ijki].T)
+                    polar2 -= 0.5 * temp * pertbar_A.Aoo[k, j]
+        # tmp = contract("ijab, ijac -> bc", l2, X2_B)
+        # polar2 += 0.5 * contract("bc, bc -> ", tmp, pertbar_A.Avv)
+                temp = contract('ab, ac -> bc', l2[ij], X2_B[ij])
+                polar2 += 0.5 * contract('bc, bc', temp, pertbar_A.Avv[ij].copy())
+        # tmp = contract("ijab, ijcb -> ac", l2, X2_B)
+        # polar2 += 0.5 * contract("ac, ac -> ", tmp, pertbar_A.Avv)
+                temp = contract('ab, cb -> ac', l2[ij], X2_B[ij])
+                polar2 += 0.5 * contract('ac, ac', temp, pertbar_A.Avv[ij].copy())
         return -1.0 * (polar1 + polar2)
 
     # def pert_quadresp(self, omega1, omega2, e_conv=1e-08, r_conv=1e-08, maxiter=200, max_diis=7, start_diis=1):
@@ -4291,7 +4321,7 @@ class ccresponse(object):
 
         if self.ccwfn.filter is True:
             w = omega
-            X1_guess, X2_guess = self.ccwfn.Local.filter_res(pertbar.Avo.T,pertbar.Avvoo, omega = w)
+            X1_guess, X2_guess = self.ccwfn.Local.filter_amps(pertbar.Avo.T,pertbar.Avvoo, omega = w)
         # initial guess, comment out omega for local 
         else:
             X1_guess = pertbar.Avo.T /(Dia + omega)
@@ -4420,14 +4450,14 @@ class ccresponse(object):
 
             #Xv{ii}
             lX1 = Avo[ii].copy()
-            lX1 /= (eps_occ[i] - eps_lvir[ii].reshape(-1,) + omega)
+            lX1 /= (self.Local.eps[ii].reshape(-1,) - self.H.F[i,i] + omega)
             self.Y1.append(2.0 * lX1.copy())
 
             for j in range(no):
                 ij = i * no + j
 
                 #temporary removing the virtual orbital energies
-                lX2 = Avvoo[ij].copy()/(eps_occ[i] + eps_occ[j] - eps_lvir[ij].reshape(1,-1) - eps_lvir[ij].reshape(-1,1) + omega)
+                lX2 = Avvoo[ij].copy()/(self.Local.eps[ij].reshape(1,-1) + self.Local.eps[ij].reshape(-1,1) - self.H.F[i,i] - self.H.F[j,j] + omega)
                 self.Y2.append((4.0 * lX2.copy()) - (2.0 * lX2.copy().swapaxes(0,1)))
 
         pseudo = self.local_pseudoresponse(lpertbar, self.Y1, self.Y2)

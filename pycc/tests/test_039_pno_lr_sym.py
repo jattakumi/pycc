@@ -50,17 +50,26 @@ def test_sym_linresp():
     omega1 = 0.0656
 
     # Creating dictionaries
-    X_A = {}
-    X_B = {}
+    # X_A = {}
+    # X_B = {}
+    X_1 = {}
+    X_2 = {}
+    Y_1 = {}
+    Y_2 = {}
 
     for axis in range(0, 3):
         string = "MU_" + resp.cart[axis]
         A = resp.pertbar[string]
-        X_A[string] = resp.solve_right(A, omega1, e_conv = 1e-08, r_conv = 1e-08)
-        X_B[string] = resp.solve_right(A, -omega1, e_conv = 1e-08, r_conv = 1e-08)
+        # X_A[string] = resp.solve_right(A, omega1, e_conv = 1e-08, r_conv = 1e-08)
+        # X_B[string] = resp.solve_right(A, -omega1, e_conv = 1e-08, r_conv = 1e-08)
+        X_2[string] = resp.solve_right(A, omega1, e_conv = 1e-08, r_conv = 1e-08)
+        Y_2[string] = resp.solve_left(A, omega1, e_conv = 1e-08, r_conv = 1e-08)
+        X_1[string] = resp.solve_right(A, -omega1, e_conv = 1e-08, r_conv = 1e-08)
+        Y_1[string] = resp.solve_left(A, -omega1, e_conv = 1e-08, r_conv = 1e-08)
 
     # Grabbing X, Y and declaring the matrix space for LR
     polar_AB = np.zeros((3,3))
+    polar_AB_sym = np.zeros((3, 3))
 
     for a in range(0, 3):
         string_a = "MU_" + resp.cart[a]
@@ -68,13 +77,23 @@ def test_sym_linresp():
         for b in range(0, 3):
             string_b = "MU_" + resp.cart[b]
             X_1B, X_2B, _ = X_B[string_b]
-            polar_AB[a,b] = resp.sym_linresp(string_a, string_b, X1_A, X2_A, X_1B, X_2B)
+            polar_AB_sym[a,b] = resp.sym_linresp(string_a, string_b, X1_A, X2_A, X_1B, X_2B)
+            Y1_B, Y2_B, _ = Y_2[string_b]
+            X1_B, X2_B, _ = X_2[string_b]
+            polar_AB[a, b] = resp.linresp_asym(string_a, X1_B, X2_B, Y1_B, Y2_B)
 
     print(f"Dynamic Polarizability Tensor @ w = {omega1} a.u.:")
     print(polar_AB)
     print("Average Dynamic Polarizability:")
     polar_AB_avg = np.average([polar_AB[0,0], polar_AB[1,1], polar_AB[2,2]])
     print(polar_AB_avg)
+
+    # print('Symmetric stuff')
+    # print(f"Dynamic Polarizability Tensor @ w = {omega1} a.u.:")
+    # print(polar_AB_sym)
+    # print("Average Dynamic Polarizability:")
+    # polar_AB_avg_sym = np.average([polar_AB_sym[0, 0], polar_AB_sym[1, 1], polar_AB_sym[2, 2]])
+    # print(polar_AB_avg_sym)
     #
     # # Validating from psi4
     # polar_xx = 9.932240347101651
@@ -100,25 +119,35 @@ def test_sym_linresp():
 
 
     # Creating dictionaries
-    X_A = {}
-    X_B = {}
+    # X_A = {}
+    # X_B = {}
+    X_1 = {}
+    X_2 = {}
+    Y_1 = {}
+    Y_2 = {}
 
     for axis in range(0, 3):
         string = "MU_" + lresp.cart[axis]
         A = lresp.lpertbar[string]
-        X_A[string] = lresp.local_solve_right(A, omega1, lhbar,  e_conv = 1e-08, r_conv = 1e-08)
-        X_B[string] = lresp.local_solve_right(A, -omega1, lhbar,  e_conv = 1e-08, r_conv = 1e-08)
-
+        # X_A[string] = lresp.local_solve_right(A, omega1, lhbar,  e_conv = 1e-08, r_conv = 1e-08)
+        # X_B[string] = lresp.local_solve_right(A, -omega1, lhbar,  e_conv = 1e-08, r_conv = 1e-08)
+        X_2[string] = lresp.local_solve_right(A, omega1, lhbar, e_conv=1e-08, r_conv=1e-08)
+        Y_2[string] = lresp.local_solve_left(A, omega1, e_conv=1e-08, r_conv=1e-08)
+        X_1[string] = lresp.local_solve_right(A, -omega1, lhbar, e_conv=1e-08, r_conv=1e-08)
+        Y_1[string] = lresp.local_solve_left(A, -omega1, e_conv=1e-08, r_conv=1e-08)
     # Grabbing X, Y and declaring the matrix space for LR
     lpolar_AB = np.zeros((3, 3))
 
     for a in range(0, 3):
         string_a = "MU_" + lresp.cart[a]
-        X1_A, X2_A, _ = X_A[string_a]
+        # X1_A, X2_A, _ = X_A[string_a]
         for b in range(0, 3):
             string_b = "MU_" + lresp.cart[b]
-            X_1B, X_2B, _ = X_B[string_b]
-            lpolar_AB[a, b] = lresp.lsym_linresp(string_a, string_b, X1_A, X2_A, X_1B, X_2B)
+            # X_1B, X_2B, _ = X_B[string_b]
+            # lpolar_AB[a, b] = lresp.lsym_linresp(string_a, string_b, X1_A, X2_A, X_1B, X_2B)
+            Y1_B, Y2_B, _ = Y_2[string_b]
+            X1_B, X2_B, _ = X_2[string_b]
+            lpolar_AB[a, b] = lresp.local_linresp(a, string_a, X1_B, Y1_B, X2_B, Y2_B)
 
     print(f"Dynamic Polarizability Tensor @ w = {omega1} a.u.:")
     print(lpolar_AB)

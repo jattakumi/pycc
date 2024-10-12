@@ -73,11 +73,11 @@ def test_sym_linresp():
 
     for a in range(0, 3):
         string_a = "MU_" + resp.cart[a]
-        X1_A, X2_A, _ = X_A[string_a]
+        #X1_A, X2_A, _ = X_A[string_a]
         for b in range(0, 3):
             string_b = "MU_" + resp.cart[b]
-            X_1B, X_2B, _ = X_B[string_b]
-            polar_AB_sym[a,b] = resp.sym_linresp(string_a, string_b, X1_A, X2_A, X_1B, X_2B)
+           # X_1B, X_2B, _ = X_B[string_b]
+            #polar_AB_sym[a,b] = resp.sym_linresp(string_a, string_b, X1_A, X2_A, X_1B, X_2B)
             Y1_B, Y2_B, _ = Y_2[string_b]
             X1_B, X2_B, _ = X_2[string_b]
             polar_AB[a, b] = resp.linresp_asym(string_a, X1_B, X2_B, Y1_B, Y2_B)

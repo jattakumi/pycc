@@ -1566,18 +1566,18 @@ class ccresponse(object):
         for i in range(no):
             ii = i * no + i
 
-            # tmp = QL[ii].T @ pert[v, i].copy()
-            # tmp += t1[i] @ (QL[ii].T @ pert[v, v].copy() @ QL[ii]).T
-            #
-            # # Sijmi = self.ccwfn.Local.Sijmi
-            # for m in range(no):
-            #     mi = m * no + i
-            #     iim = ii * no + m
-            #     tmp -= (t1[m] @ Sijmm[iim].T) * pert[m, i].copy()
-            #     tmp1 = (2.0 * t2[mi] - t2[mi].swapaxes(0, 1)) @ Sijmi[iim].T
-            #     tmp += contract('ea,e->a', tmp1, pert[m, v].copy() @ QL[mi])
-            #     tmp -= contract('e,a,e->a', t1[i], t1[m] @ Sijmm[iim].T, pert[m, v].copy() @ QL[ii])
-            # polar1 += contract('a, a', tmp, Y1_B[i].copy())
+            tmp = QL[ii].T @ pert[v, i].copy()
+            tmp += t1[i] @ (QL[ii].T @ pert[v, v].copy() @ QL[ii]).T
+          
+             # Sijmi = self.ccwfn.Local.Sijmi
+            for m in range(no):
+                mi = m * no + i
+                iim = ii * no + m
+                tmp -= (t1[m] @ Sijmm[iim].T) * pert[m, i].copy()
+                tmp1 = (2.0 * t2[mi] - t2[mi].swapaxes(0, 1)) @ Sijmi[iim].T
+                tmp += contract('ea,e->a', tmp1, pert[m, v].copy() @ QL[mi])
+                tmp -= contract('e,a,e->a', t1[i], t1[m] @ Sijmm[iim].T, pert[m, v].copy() @ QL[ii])
+            polar1 += contract('a, a', tmp, Y1_B[i].copy())
         # <0|Y2(B) * A_bar|0>
         # polar1 += 0.5 * contract("abij, ijab -> ", Avvoo, Y2_B)
         # polar1 += 0.5 * contract("baji, ijab -> ", Avvoo, Y2_B)

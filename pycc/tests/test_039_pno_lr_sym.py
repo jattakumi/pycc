@@ -24,7 +24,7 @@ def test_sym_linresp():
     psi4.core.clean_options()
     psi4.set_memory('2 GiB')
     psi4.core.set_output_file('output.dat', False)
-    psi4.set_options({'basis': 'cc-pVDZ',
+    psi4.set_options({'basis': 'aug-cc-pVDZ',
                       'scf_type': 'pk',
                       'mp2_type': 'conv',
                       'freeze_core': 'true',

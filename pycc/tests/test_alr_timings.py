@@ -10,8 +10,8 @@ from data.molecules import *
 num = ["1", "2", "3", "4", "5", "6", "7"]
 
 # File to save results for all molecules
-combined_diag_file = "polarizability_combined_diagonal.txt"
-combined_timings_file = "polarizability_combined_timings.txt"
+combined_diag_file = "asympolarizability_combined_diagonal.txt"
+combined_timings_file = "asympolarizability_combined_timings.txt"
 
 # Write headers for each combined file once
 if not os.path.exists(combined_diag_file):
@@ -60,50 +60,54 @@ for n in num:
     lresp = ccresponse(ldensity)
 
     omega1 = 0.0428
-    X_A = {}
-    X_B = {}
+    X_1 = {}
+    X_2 = {}
+    Y_1 = {}
+    Y_2 = {}
 
     # Calculate local responses
     for axis in range(0, 3):
-      string = "MU_" + lresp.cart[axis]
-      A = lresp.lpertbar[string]
-      X_A[string] = lresp.local_solve_right(A, omega1, lhbar, e_conv=e_conv, r_conv=r_conv)
-      X_B[string] = lresp.local_solve_right(A, -omega1, lhbar, e_conv=e_conv, r_conv=r_conv)
+        string = "MU_" + lresp.cart[axis]
+        A = lresp.lpertbar[string]
+        X_2[string] = lresp.local_solve_right(A, omega1, lhbar, e_conv=1e-08, r_conv=1e-08)
+        Y_2[string] = lresp.local_solve_left(A, omega1, e_conv=1e-08, r_conv=1e-08)
+        X_1[string] = lresp.local_solve_right(A, -omega1, lhbar, e_conv=1e-08, r_conv=1e-08)
+        Y_1[string] = lresp.local_solve_left(A, -omega1, e_conv=1e-08, r_conv=1e-08)
 
     # Grabbing X, Y and declaring the matrix space for linear response
     lpolar_AB = np.zeros((3, 3))
 
     for a in range(0, 3):
-      string_a = "MU_" + lresp.cart[a]
-      X1_A, X2_A, _ = X_A[string_a]
-      for b in range(0, 3):
-        string_b = "MU_" + lresp.cart[b]
-        X_1B, X_2B, _ = X_B[string_b]
-        lpolar_AB[a, b] = lresp.lsym_linresp(string_a, string_b, X1_A, X2_A, X_1B, X_2B)
+        string_a = "MU_" + lresp.cart[a]
+        for b in range(0, 3):
+            string_b = "MU_" + lresp.cart[b]
+            Y1_B, Y2_B, _ = Y_2[string_b]
+            X1_B, X2_B, _ = X_2[string_b]
+            lpolar_AB[a, b] = lresp.local_linresp(a, string_a, X1_B, Y1_B, X2_B, Y2_B)
+
 
     # Calculate average polarizability
     lpolar_AB_avg = np.average([lpolar_AB[0, 0], lpolar_AB[1, 1], lpolar_AB[2, 2]])
 
     # Save diagonal components and average to a single combined file
     with open(combined_diag_file, 'a') as f_diag:
-      diagonal_components = [lpolar_AB[0, 0], lpolar_AB[1, 1], lpolar_AB[2, 2]]
-      f_diag.write(f"{geom}\t" + '\t'.join(map(str, diagonal_components)) + f"\t{lpolar_AB_avg}\n")
+        diagonal_components = [lpolar_AB[0, 0], lpolar_AB[1, 1], lpolar_AB[2, 2]]
+        f_diag.write(f"{geom}\t" + '\t'.join(map(str, diagonal_components)) + f"\t{lpolar_AB_avg}\n")
 
     # Gather timings
     timings = []
     timing_sources = [
-      "lX1_t", "lX2_t", "lpseudoresponse_t",
-      "lLCX_t", "lLHX1Y1_t", "lLHX2Y2_t",
-      "lLHX1Y2_t", "lsym_lr_t"
-    ]
+        "lX1_t", "lX2_t", "lY1_t", "lY2_t",
+        "lpseudoresponse_t",
+        "llcx_t", "quad_terms"]
 
     for source in timing_sources:
-      timings.append(getattr(lresp, source))
+        timings.append(getattr(lresp, source))
 
     # Save timings to the combined timings file
     with open(combined_timings_file, 'a') as f_timings:
-      for time_index in range(len(timings)):
-        f_timings.write(f"{geom}\t{timing_sources[time_index]}\t{timings[time_index]}\n")
+        for time_index in range(len(timings)):
+            f_timings.write(f"{geom}\t{timing_sources[time_index]}\t{timings[time_index]}\n")
 
 # Clean up
 del lcc, lhbar, lcclambda, ldensity, lresp

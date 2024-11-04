@@ -62,6 +62,20 @@ class ccresponse(object):
         # self.l2 = self.cclambda.l2
         self.no = self.ccwfn.no
         self.psuedoresponse = []
+        self.quad_terms = 0
+        self.llcx_t = 0
+        self.lsym_lr_t = 0
+        self.lLCX_t = 0
+        self.lLHX1Y1_t = 0
+        self.lLHX2Y2_t = 0
+        self.lLHX1Y2_t = 0
+
+        self.lX1_t = 0
+        self.lX2_t = 0
+        self.lY1_t = 0
+        self.lY2_t = 0
+        self.lpseudoresponse_t = 0
+        self.pseudoresponse_t = 0
 
         if self.ccwfn.local is not None and self.ccwfn.filter is not True: 
             self.lccwfn = ccdensity.lccwfn
@@ -121,6 +135,7 @@ class ccresponse(object):
             if self.ccwfn.local is not None:
                 self.Local = self.ccwfn.Local
                 # self.dim = self.lccwfn.Local.dim
+
 
             # Cartesian indices
             self.cart = ["X", "Y", "Z"]
@@ -425,6 +440,7 @@ class ccresponse(object):
         polar1 += self.LCX(pertkey_b, X1_A, X2_A)
 
         # <0|(HX1Y1)|0>
+        lhx1y1_start = process_time()
         LHX1Y1 = 2.0 * contract('ijab, ia, jb', L[o, o, v, v], X1_B, X1_A)
         Goo = contract('mjab,ijab->mi', t2, l2)
         Gvv = -1.0 * contract('ijeb,ijab->ae', t2, l2)
@@ -434,13 +450,18 @@ class ccresponse(object):
         r2_Goo = r2_Goo + r2_Goo.swapaxes(0, 1).swapaxes(2, 3)
         LHX1Y1 += contract('ijab,ia,jb', r2_Gvv, X1_A, X1_B)  # Gvv
         LHX1Y1 += contract('ijab,ia,jb', r2_Goo, X1_A, X1_B)  # Goo
+        lhx1y1_end = process_time()
+        self.lLHX1Y1_t += lhx1y1_end - lhx1y1_start
         polar1 += self.LHX1Y1(X1_B, X1_A)
         polar1 += self.LHX1Y1(X1_A, X1_B)
         # #
         # # # <0|L2[[H, X2], Y2]|0>
+        lhx2y2_start = process_time()
         temp = contract("ikac, ijab -> kjbc", L[o, o, v, v], X2_A)
         temp = contract("kjbc, klcd -> jlbd", temp, X2_B)
         LHX2Y2 = 2 * contract("jlbd, jlbd -> ", temp, l2)
+        lhx2y2_end = process_time()
+        self.lLHX2Y2_t += lhx2y2_end - lhx2y2_start
         polar1 += self.LHX2Y2(X2_A, X2_B)
         polar1 += self.LHX2Y2(X2_B, X2_A)
         # #
@@ -455,7 +476,7 @@ class ccresponse(object):
         return -1.0 * polar1
 
     def LCX(self, pertkey_a, X1_B, X2_B):
-        LCX_start = process_time()
+        llcx_start = process_time()
         """
         LCX: Is the first second term contributions to the linear response symmetric function.
         <0|(1 + L^(0)){ [\bar{A}^(0), X^(1)(B)] + [\bar{B}^(1), X^(1)(B)]}|0>
@@ -502,12 +523,12 @@ class ccresponse(object):
         tmp = contract("ijab, ijcb -> ac", l2, X2_B)
         LCX += 0.5 * contract("ac, ac -> ", tmp, Avv)
 
-        LCX_end = process_time()
-        self.LCX_t = LCX_end - LCX_start
+        llcx_end = process_time()
+        self.lLCX_t += llcx_end - llcx_start
         return LCX
 
     def LHX1Y1(self, X1_B, X1_A):
-        LHX1Y1_start = process_time()
+        llhx1y1_start = process_time()
         """
         LHX1Y1: Is a function for the second term (quadratic term) contribution to the linear response
         function, where both perturbed amplitudes are first order.
@@ -558,13 +579,13 @@ class ccresponse(object):
         temp = contract('klaj, jb -> klab', temp, X1_A)
         LHX1Y1 += 0.5 * contract('klab, klab', temp, l2)
 
-        LHX1Y1_end = process_time()
-        self.LHX1Y1_t = LHX1Y1_end - LHX1Y1_start
+        llhx1y1_end = process_time()
+        self.lLHX1Y1_t += llhx1y1_end - llhx1y1_start
 
         return LHX1Y1
 
     def LHX2Y2(self, X2_A, X2_B):
-        LHX2Y2_start = process_time()
+        llhx2y2_start = process_time()
         """
         LHX2Y2: Is a function for the second term (quadratic term) contribution to the linear response
         function, where both perturbed amplitudes are second order.
@@ -601,12 +622,12 @@ class ccresponse(object):
         temp = contract("ikbd, jkbc -> ijcd", temp, X2_B)
         LHX2Y2 += 0.5 * contract("ijcd, ijcd -> ", temp, l2)
 
-        LHX2Y2_end = process_time()
-        self.LHX2Y2_t = LHX2Y2_end - LHX2Y2_start
+        llhx2y2_end = process_time()
+        self.lLHX2Y2_t += llhx2y2_end - llhx2y2_start
         return LHX2Y2
 
     def LHX1Y2(self, X1_B, X2_A):
-        LHX1Y2_start = process_time()
+        llhx1y2_start = process_time()
         """
         LHX1Y2: Is a function for the second term (quadratic term) contribution to the linear response
         function, where perturbed amplitudes is a first order and a second order.
@@ -678,8 +699,8 @@ class ccresponse(object):
         temp = contract('jlac, ijab -> libc', temp, X2_A)
         LHX1Y2 += contract('libc, libc -> ', temp, l2)
 
-        LHX1Y2_end = process_time()
-        self.LHX1Y2_t = LHX1Y2_end - LHX1Y2_start
+        llhx1y2_end = process_time()
+        self.lLHX1Y2_t += llhx1y2_end - llhx1y2_start
         return LHX1Y2
 
 # Below are all the local parts of lin_resp sym
@@ -1522,11 +1543,15 @@ class ccresponse(object):
         Avvoo = pertbar_A.Avvoo.swapaxes(0, 2).swapaxes(1, 3)
 
         # # <0|Y1(B) * A_bar|0>
+        quad_start = process_time()
         polar1 += contract("ai, ia -> ", pertbar_A.Avo, Y1_B)
         # # <0|Y2(B) * A_bar|0>
         polar1 += 0.5 * contract("abij, ijab -> ", Avvoo, Y2_B)
         polar1 += 0.5 * contract("baji, ijab -> ", Avvoo, Y2_B)
+        quad_end = process_time()
+        self.quad_terms = quad_end - quad_start
         # <0|[A_bar, X(B)]|0>
+        llcx_start = process_time()
         polar2 += 2.0 * contract("ia, ia -> ", pertbar_A.Aov, X1_B)
         # <0|L1(0) [A_bar, X1(B)]|0>
         tmp = contract("ia, ic -> ac", l1, X1_B)
@@ -1554,8 +1579,8 @@ class ccresponse(object):
         tmp = contract("ijab, ijcb -> ac", l2, X2_B)
         polar2 += 0.5 * contract("ac, ac -> ", tmp, pertbar_A.Avv)
 
-        end_lr_asym = process_time()
-        self.linresp_asym_t = end_lr_asym - start_lr_asym
+        llcx_end = process_time()
+        self.llcx_t = llcx_end - llcx_start
         return -1.0 * (polar1 + polar2)
 
     def local_linresp(self, axis, pertkey_a, X1_B, Y1_B, X2_B, Y2_B):
@@ -1711,7 +1736,7 @@ class ccresponse(object):
         return -1.0 * (polar1 + polar2)
 
 
-    def solve_right(self, pertbar, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=7, start_diis=1, pert_filter=False):
+    def solve_right(self, pertbar, omega, e_conv=1e-12, r_conv=1e-12, maxiter=200, max_diis=100, start_diis=100, pert_filter=False):
         solver_start = time.time()
 
         Dia = self.Dia
@@ -2091,7 +2116,7 @@ class ccresponse(object):
         #        #self.X1, self.X2 = diis.extrapolate(self.X1, self.X2)
 
     def r_X1(self, pertbar, omega):
-        start_r_x1 = process_time()
+        lX1_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -2109,8 +2134,8 @@ class ccresponse(object):
         r_X1 += contract('imef,amef->ia', X2, (2.0* hbar.Hvovv - hbar.Hvovv.swapaxes(2,3)))
         r_X1 -= contract('mnae,mnie->ia', X2, (2.0* hbar.Hooov - hbar.Hooov.swapaxes(0,1)))
 
-        end_r_X1 = process_time()
-        # self.time_X1 += end_r_X1 - start_r_x1
+        lX1_end = process_time()
+        self.lX1_t += lX1_end - lX1_start
         return r_X1
 
     def lr_X1(self, lpertbar, omega):
@@ -2212,7 +2237,7 @@ class ccresponse(object):
         return lr_X1_all
 
     def r_X2(self, pertbar, omega):
-        start_r_X2 = process_time()
+        lX2_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -2245,8 +2270,8 @@ class ccresponse(object):
 
         r_X2 = r_X2 + r_X2.swapaxes(0,1).swapaxes(2,3)
 
-        end_r_X2 = process_time()
-        self.time_X2 += end_r_X2 - start_r_X2
+        lX2_end = process_time()
+        self.lX2_t += lX2_end - lX2_start
         return r_X2
 
     def lr_X2(self, lpertbar, conv_hbar, omega):
@@ -2370,7 +2395,7 @@ class ccresponse(object):
         return lr2    
 
     def in_Y1(self, pertbar, X1, X2):
-        start_inY1 = process_time()
+        lY1_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -2501,8 +2526,8 @@ class ccresponse(object):
         tmp  += contract('mioe,mnef->ionf', hbar.Hooov, X2)
         r_Y1 += contract('ionf,nofa->ia', tmp, l2)
 
-        end_inY1 = process_time()
-        self.time_inY1 = end_inY1 - start_inY1
+        lY1_end = process_time()
+        self.lY1_t += lY1_end - lY1_start
         return r_Y1
 
     def in_lY1(self, lpertbar, X1, X2):
@@ -3053,7 +3078,7 @@ class ccresponse(object):
         return r_Y1
 
     def r_Y1(self, pertbar, omega):
-        start_r_Y1 = process_time()
+        lY1_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -3113,12 +3138,12 @@ class ccresponse(object):
         r_Y1 -= 2.0 * contract('mina,mn->ia', hbar.Hooov, cclambda.build_Goo(t2, Y2))
         r_Y1 += contract('imna,mn->ia', hbar.Hooov, cclambda.build_Goo(t2, Y2))
 
-        end_r_Y1 = process_time()
-        # self.time_Y1 += end_r_Y1 - start_r_Y1
+        lY1_end = process_time()
+        self.lY1_t += lY1_end - lY1_start
         return r_Y1
    
     def in_Y2(self, pertbar, X1, X2):
-        start_inY2 = process_time()
+        lY2_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -3213,8 +3238,8 @@ class ccresponse(object):
         tmp   = 2.0 * contract('njfb,mnef->jbme', l2, X2)
         r_Y2 += contract('imae,jbme->ijab', L[o,o,v,v], tmp)
 
-        end_inY2 = process_time()
-        self.time_inY2 = end_inY2 - start_inY2
+        lY2_end = process_time()
+        self.lY2_t += lY2_end - lY2_start
         return r_Y2
 
     def in_lY2(self, lpertbar, X1, X2):
@@ -3486,7 +3511,7 @@ class ccresponse(object):
 
 
     def r_Y2(self, pertbar, omega):
-        start_r_Y2 = process_time()
+        lY2_start = process_time()
         contract = self.contract
         o = self.ccwfn.o
         v = self.ccwfn.v
@@ -3523,8 +3548,8 @@ class ccresponse(object):
 
         r_Y2 = r_Y2 + r_Y2.swapaxes(0,1).swapaxes(2,3)
 
-        end_r_Y2 = process_time()
-        self.time_Y2 = end_r_Y2 - start_r_Y2
+        lY2_end = process_time()
+        self.lY2_t += lY2_end - lY2_start
         return r_Y2
 
     def lr_Y2(self, lpertbar, omega):
@@ -3640,12 +3665,12 @@ class ccresponse(object):
         return lr_Y2
 
     def pseudoresponse(self, pertbar, X1, X2):
-        # pseudoresponse_start = process_time()
+        lpseudoresponse_start = process_time()
         contract = self.ccwfn.contract
         polar1 = 2.0 * contract('ai,ia->', np.conj(pertbar.Avo), X1)
         polar2 = 2.0 * contract('ijab,ijab->', np.conj(pertbar.Avvoo), (2.0*X2 - X2.swapaxes(2,3)))
-        pseudoresponse_end = process_time()
-        # self.pseudoresponse_t += pseudoresponse_end - pseudoresponse_start
+        lpseudoresponse_end = process_time()
+        self.lpseudoresponse_t += lpseudoresponse_end - lpseudoresponse_start
         return -2.0*(polar1 + polar2)
 
     def local_pseudoresponse(self, lpertbar, X1, X2):

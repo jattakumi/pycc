@@ -412,7 +412,7 @@ class cclambda(object):
                 ecc = ecc + ecc_ij
         return 0.5 * ecc
 
-    def solve_lambda(self, e_conv=1e-7, r_conv=1e-7, maxiter=200, max_diis=8, start_diis=1):
+    def solve_lambda(self, e_conv=1e-7, r_conv=1e-7, maxiter=200, max_diis=200, start_diis=100):
         """
         Parameters
         ----------
